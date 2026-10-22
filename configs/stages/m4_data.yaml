@@ -4,7 +4,7 @@ image: runpod/base:1.0.2-ubuntu2404   # tag checked on Docker Hub 2026-10-22
 extras: sim,dev
 resources:
   min_gpu_gb: 0
-  min_vcpus: 16   # 32-vCPU CPU pods were out of stock on 2026-10-22
+  min_vcpus: 32   # same cost as 16 vCPU at half the time; 16 vCPU risked running past max_hours
   core_hours_per_unit: 1.6   # measured here: ~0.18 decisions/s/core with frames and counterfactuals
 work_units: 200              # thousands of decisions
 command: >-

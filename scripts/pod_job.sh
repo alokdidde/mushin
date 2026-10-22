@@ -43,5 +43,13 @@ if [ -n "${MUSHIN_DATA_REPO:-}" ]; then
   hf download "$MUSHIN_DATA_REPO" --repo-type dataset --local-dir "${MUSHIN_DATA_DIR:-data/m4}" \
     || exit 14
 fi
+if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
+  # Progress heartbeat: a job that writes $OUT_DIR/progress.json gets it uploaded every 30 min.
+  (while sleep 1800; do
+     [ -f "$WORK/$OUT_DIR/progress.json" ] && hf upload "$MUSHIN_OUT_REPO" \
+       "$WORK/$OUT_DIR/progress.json" "${MUSHIN_OUT_PREFIX:+$MUSHIN_OUT_PREFIX/}progress.json" \
+       --repo-type "${MUSHIN_OUT_REPO_TYPE:-model}" --private >/dev/null 2>&1
+   done) &
+fi
 log "running: $MUSHIN_COMMAND"
 timeout "$MUSHIN_MAX_SECONDS" bash -c "$MUSHIN_COMMAND"
