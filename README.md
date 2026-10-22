@@ -6,7 +6,27 @@ Mushin aims to turn context and a focused question into a bounded decision that 
 
 ## Current status
 
-This repository introduces the research direction and proposed evaluation plan. Model implementation, training, released weights, and benchmark results are not yet available. The interfaces below illustrate the intended design; they are not a working API. Milestones will be updated as implementation and experiments are completed.
+Milestone M0 (data) is implemented: a versioned decision record format and a generator that produces labelled decisions with camera frames from [uzumaki](https://github.com/alokdidde/uzumaki)'s MuJoCo scenes. Model code, training, released weights and benchmark results are not yet available; the interfaces further below illustrate the intended design and are not a working API.
+
+### Data generation (M0)
+
+Mushin's first target is uzumaki's planner slot (`DecisionSource`): at each decision it sees the task goal, the latest observation, recent history and scene + wrist camera frames, and chooses one eligible skill with typed parameters, or abstains. `mushin.data` produces training records for exactly that:
+
+- **Bodies and task packs:** all eight uzumaki bodies (SO-101, Panda, Spot, G1, Go1 on `pick-place-v1`; ALOHA on `handover-v1`; TidyBot and the walking Go1 on `fetch-v1`), on fresh training-only seeds (`mushin-train-*`) with random injected faults (misgrasps, stale observations, dropped handovers, short drives, crashes, goal withdrawal, unreachable targets).
+- **Exploration:** the rule selector acts as teacher; with probability epsilon a random offered option (or abstain) is taken instead, with oracle or random parameters.
+- **Counterfactual labels:** every decision is replayed and each offered skill is tried in its place, with the rule selector finishing the episode. This gives P(success) labels for every option, a hard and soft choice target (fewer decisions preferred, abstain when nothing succeeds), and parameter targets (value bins for numbers, per-value success for enums). The simulator is deterministic, so each label carries the evidence-bundle hash that reproduces it.
+- **Frames:** 224 px scene and wrist JPEGs per decision, with render-only domain randomization (lighting, colours, camera pose) that leaves physics and labels unchanged.
+- **Splits:** whole held-out bodies (default: Go1) and task packs, then a seed-hash split into train / val / calib / test; `splits.json` pins the records hash.
+
+```bash
+uv venv -p 3.12 && uv pip install -e ".[sim,dev]"
+scripts/fetch_uzumaki.sh                      # pinned checkout in third_party/ + MuJoCo assets
+python -m mushin.data.generate --out data/m0 --episodes 800 --workers 8
+python -m mushin.data.splits data/m0 --config configs/data_m0.yaml
+python -m mushin.data.verify data/m0 --reproduce 50
+```
+
+The record format is `mushin.decision/1.0` ([schema](mushin/schema/decision-1.0.schema.json)); skill and task cards are stored once per dataset in `cards.json`. Rendering needs EGL or OSMesa (`MUJOCO_GL=egl`).
 
 ## Motivation
 

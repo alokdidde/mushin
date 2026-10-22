@@ -1,0 +1,11 @@
+# M0 sample set: about 2k decisions over all eight bodies, frames on, counterfactual labels.
+family: m0
+episodes: 800
+epsilon: 0.3
+bodies: [so101, panda, spot, g1, go1, aloha, tidybot, go1_walk]
+splits:
+  # Whole bodies or task packs kept out of training, evaluated as "test_body" / "test_protocol".
+  held_out_bodies: [go1]
+  held_out_protocols: []
+  # Remaining episodes are split by a hash of their seed (no episode crosses splits).
+  fractions: {train: 0.85, val: 0.05, calib: 0.05, test: 0.05}

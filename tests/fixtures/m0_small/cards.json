@@ -1,0 +1,226 @@
+{
+ "skills": {
+  "2501f5e9ffa3bcd00e961c4ce9b7b40dea533be3fb1ea4a6a5a7d99322b0d4f1": {
+   "applies_when": "Object not held, pose estimate fresh (at most 200 ms) and inside the tabletop frame.",
+   "expected_progress": "partial",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "grasp_height_m": {
+      "description": "Grasp height above the tabletop.",
+      "maximum": 0.2,
+      "minimum": 0,
+      "type": "number"
+     }
+    },
+    "required": [
+     "grasp_height_m"
+    ],
+    "type": "object"
+   },
+   "instructions": "Observe, then pick the object with the giver at the observed pose estimate with the given grasp height. Abort on an unreachable pose.",
+   "skill_id": "pick-box",
+   "skill_version": 1
+  },
+  "632d34ba639067e4af9d84c590c9e45d813603a1e209f4a30c35d054d1b754db": {
+   "applies_when": "Body can move; the object or target pose is fresh (at most 200 ms) and not yet within reach.",
+   "expected_progress": "none",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "to": {
+      "description": "What to bring within reach.",
+      "enum": [
+       "object",
+       "target"
+      ],
+      "maxLength": 8,
+      "type": "string"
+     }
+    },
+    "required": [
+     "to"
+    ],
+    "type": "object"
+   },
+   "instructions": "Observe, then move the robot until the object (to: object) or the target (to: target) is within reach. Abort on a point that is on no table.",
+   "skill_id": "go-to",
+   "skill_version": 1
+  },
+  "7b6c68d21f3d909afe8078e69a49cb5fcd8c06793ebfebbc99622801db68ae19": {
+   "applies_when": "Box not held, pose estimate fresh (at most 200 ms) and inside the tabletop frame.",
+   "expected_progress": "partial",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "grasp_height_m": {
+      "description": "Grasp height above the tabletop.",
+      "maximum": 0.2,
+      "minimum": 0,
+      "type": "number"
+     }
+    },
+    "required": [
+     "grasp_height_m"
+    ],
+    "type": "object"
+   },
+   "instructions": "Observe, then pick the box at the observed pose estimate with the given grasp height. Abort on an unreachable pose.",
+   "skill_id": "pick-box",
+   "skill_version": 1
+  },
+  "d2feba93604bf20c1f8867b4448293e604e4608f5baa576111d8d1084d42f136": {
+   "applies_when": "Object held by the taker, target pose fresh (at most 200 ms) and inside the tabletop frame.",
+   "expected_progress": "goal_reached",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "approach": {
+      "enum": [
+       "vertical",
+       "angled"
+      ],
+      "maxLength": 16,
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "instructions": "Observe, then place the object the taker holds at the observed target pose and release it.",
+   "skill_id": "place-box",
+   "skill_version": 1
+  },
+  "e0a1065711e98076c031dee4fe49d9a9572b6ea999c6a9dcd1f212f21ee2f13e": {
+   "applies_when": "Object held by the giver, observation fresh (at most 200 ms).",
+   "expected_progress": "partial",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {},
+    "required": [],
+    "type": "object"
+   },
+   "instructions": "Observe, then pass the object the giver holds to the taker: the taker grasps it, the giver releases it.",
+   "skill_id": "hand-over",
+   "skill_version": 1
+  },
+  "e36f179c16a75e630db9f42f5b9d1c88b4b626a1a1d67a0203ee8792e9e71b83": {
+   "applies_when": "Object not held and within reach, pose estimate fresh (at most 200 ms) and on a table.",
+   "expected_progress": "partial",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "grasp_height_m": {
+      "description": "Grasp height above the tabletop.",
+      "maximum": 0.2,
+      "minimum": 0,
+      "type": "number"
+     }
+    },
+    "required": [
+     "grasp_height_m"
+    ],
+    "type": "object"
+   },
+   "instructions": "Observe, then pick the object at the observed pose estimate with the given grasp height. Only when the object is within reach; abort on an unreachable pose.",
+   "skill_id": "pick-box",
+   "skill_version": 1
+  },
+  "e3cd79f87b586217a86fc41639fc3d77ed2bbf943e206615e63c0ee6def8e821": {
+   "applies_when": "Box held, target pose fresh (at most 200 ms) and inside the tabletop frame.",
+   "expected_progress": "goal_reached",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "approach": {
+      "enum": [
+       "vertical",
+       "angled"
+      ],
+      "maxLength": 16,
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "instructions": "Observe, then place the held box at the observed target pose and release it.",
+   "skill_id": "place-box",
+   "skill_version": 1
+  },
+  "ecac6ffe677111a3e698020f91cec420e0e5926c18f9fd32ac7d97ae5f477a57": {
+   "applies_when": "Object held, target within reach, target pose fresh (at most 200 ms) and on a table.",
+   "expected_progress": "goal_reached",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "approach": {
+      "enum": [
+       "vertical",
+       "angled"
+      ],
+      "maxLength": 16,
+      "type": "string"
+     }
+    },
+    "required": [],
+    "type": "object"
+   },
+   "instructions": "Observe, then place the held object at the observed target pose and release it. Only when the target is within reach.",
+   "skill_id": "place-box",
+   "skill_version": 1
+  },
+  "fb0db4298a7783bca97030585bc2aaaa0dae44e9487551f101e128d4fe5d6ee7": {
+   "applies_when": "Full pick-place-v1 case: box on the table, target declared, both poses fresh.",
+   "expected_progress": "goal_reached",
+   "input_schema": {
+    "additionalProperties": false,
+    "properties": {
+     "grasp_height_m": {
+      "maximum": 0.2,
+      "minimum": 0,
+      "type": "number"
+     }
+    },
+    "required": [
+     "grasp_height_m"
+    ],
+    "type": "object"
+   },
+   "instructions": "Run pick-box, then place-box. Return control to the coordinator after release or on any unlisted failure.",
+   "skill_id": "pick-and-place",
+   "skill_version": 1
+  }
+ },
+ "tasks": {
+  "fetch-v1": {
+   "eligibility_rule": "- The harness lists a skill under \"eligible_skills\" only after checking its applies_when\n  conditions (fresh poses, tabletop frame, whether the box is held and what is within reach) against the latest\n  observations; do not re-check them. Skills read the box pose themselves, so it is not shown.",
+   "goal": "Move the box to target_pose (x, y, yaw) on the other table and release it. Pick and place only what within_reach says is reachable; go to it first otherwise.",
+   "intro": "You are the planner of a mobile robot harness for a fetch task: the object is on one table and its target on another, and the robot moves between them.",
+   "observation_fields": [
+    "gripper_state",
+    "within_reach",
+    "target_pose"
+   ]
+  },
+  "handover-v1": {
+   "eligibility_rule": "- The harness lists a skill under \"eligible_skills\" only after checking its applies_when\n  conditions (fresh poses, tabletop frame, whether who holds it) against the latest\n  observations; do not re-check them. Skills read the box pose themselves, so it is not shown.",
+   "goal": "Move the object to target_pose (x, y, yaw) on the tabletop and release it; the giver cannot reach the target, so it must be handed over first.",
+   "intro": "You are the planner of a two-arm robot harness for a tabletop handover task: one arm (the giver) picks the object, hands it to the other (the taker), which places it.",
+   "observation_fields": [
+    "gripper_state",
+    "holder",
+    "target_pose"
+   ]
+  },
+  "pick-place-v1": {
+   "eligibility_rule": "- The harness lists a skill under \"eligible_skills\" only after checking its applies_when\n  conditions (fresh poses, tabletop frame, whether the box is held) against the latest\n  observations; do not re-check them. Skills read the box pose themselves, so it is not shown.",
+   "goal": "Move the box to target_pose (x, y, yaw) on the tabletop and release it.",
+   "intro": "You are the planner of a robot-arm harness for a tabletop pick-and-place task.",
+   "observation_fields": [
+    "gripper_state",
+    "target_pose"
+   ]
+  }
+ }
+}
