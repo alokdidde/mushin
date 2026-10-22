@@ -205,6 +205,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workers", type=int, default=max(1, multiprocessing.cpu_count()))
     parser.add_argument("--no-frames", action="store_true")
     parser.add_argument("--uzumaki", type=Path, default=None)
+    parser.add_argument("--stall-s", type=float, default=1800.0,
+                        help="stop early when no episode finishes for this long")
     options = parser.parse_args(argv)
     root = str(B.use_uzumaki(options.uzumaki))
     names = [n for n in options.bodies.split(",") if n]
@@ -232,12 +234,29 @@ def main(argv: list[str] | None = None) -> int:
     started = time.monotonic()
     results = []
     context = multiprocessing.get_context("spawn")
-    with context.Pool(options.workers, maxtasksperchild=50) as pool:
-        for done, result in enumerate(pool.imap_unordered(run_episode, jobs), 1):
+    # Records are appended as each episode finishes, so a run cut off by its deadline (or a
+    # hung worker) still leaves every finished episode on disk for the upload.
+    with context.Pool(options.workers, maxtasksperchild=50) as pool, \
+            (out / "records.partial.jsonl").open("w") as partial:
+        pending = pool.imap_unordered(run_episode, jobs)
+        for done in range(1, len(jobs) + 1):
+            try:
+                result = pending.next(timeout=options.stall_s)
+            except multiprocessing.TimeoutError:
+                print(f"no episode finished in {options.stall_s:.0f} s; stopping early", flush=True)
+                break
             results.append(result)
+            for record in result["records"]:
+                partial.write(json.dumps(record, sort_keys=True) + "\n")
+            partial.flush()
             if done % 25 == 0 or done == len(jobs):
                 elapsed = time.monotonic() - started
                 print(f"{done}/{len(jobs)} episodes, {elapsed:.0f} s", flush=True)
+                (out / "progress.json").write_text(json.dumps({
+                    "episodes_done": done, "episodes": len(jobs),
+                    "decisions": sum(len(r["records"]) for r in results),
+                    "elapsed_s": round(elapsed)}))
+        pool.terminate()
     results.sort(key=lambda r: r["index"])
     digest = hashlib.sha256()
     count = 0
@@ -251,6 +270,7 @@ def main(argv: list[str] | None = None) -> int:
     records = [r for result in results for r in result["records"]]
     stats = {
         "episodes": len(results),
+        "complete": len(results) == len(jobs),
         "decisions": count,
         "records_sha256": digest.hexdigest(),
         "wall_s": round(time.monotonic() - started, 1),
@@ -283,6 +303,7 @@ def main(argv: list[str] | None = None) -> int:
         "epsilon": options.epsilon,
     }
     (out / "stats.json").write_text(json.dumps(stats, indent=2))
+    (out / "records.partial.jsonl").unlink()
     print(json.dumps(stats, indent=2))
     return 0
 
