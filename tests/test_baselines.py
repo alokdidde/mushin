@@ -1,6 +1,8 @@
 import json
 import shutil
 
+import pytest
+
 from mushin.data.splits import build
 from mushin.eval import baselines
 
@@ -20,6 +22,7 @@ def test_baselines_score_every_held_out_split(tmp_path, small_dir):
 
 
 def test_config_overrides_parse_numbers(tmp_path):
+    pytest.importorskip("torch")
     from mushin.train.sft import load_config
 
     path = tmp_path / "c.yaml"
