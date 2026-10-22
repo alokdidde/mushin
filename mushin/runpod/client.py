@@ -1,7 +1,7 @@
 """Minimal RunPod API client (standard library only).
 
-Prices and availability come from the GraphQL API (``gpuTypes``); pods are created, read,
-stopped and terminated through the REST API (``/v1/pods``). The key is read from
+Prices and availability come from the GraphQL API (``gpuTypes`` and ``cpuFlavors``); pods are
+created, read, stopped and terminated through the REST API (``/v1/pods``). The key is read from
 ``RUNPOD_API_KEY`` and never logged. Field names follow RunPod's public API docs; the training
 thread checks them with a read-only ``offers`` call before the first paid start.
 """
@@ -24,6 +24,18 @@ query GpuTypes {
     id displayName memoryInGb secureCloud communityCloud
     securePrice communityPrice secureSpotPrice communitySpotPrice
     lowestPrice(input: {gpuCount: 1}) { stockStatus maxUnreservedGpuCount }
+  }
+}
+"""
+
+CPU_FLAVORS = ("cpu3c", "cpu3g", "cpu5c", "cpu5g")
+#: vCPU counts offered for CPU pods; RAM is the flavor's multiplier times this.
+CPU_SIZES = (8, 16, 32)
+CPU_QUERY = """
+query CpuFlavor {
+  cpuFlavors(input: {id: "%s"}) {
+    id ramMultiplier
+    specifics(input: {instanceId: "%s"}) { stockStatus securePrice }
   }
 }
 """
@@ -70,6 +82,22 @@ class RunPodClient:
                     if value:
                         out.append(Offer(gpu["id"], int(gpu.get("memoryInGb") or 0),
                                          vcpus_per_gpu, float(value), cloud, spot, available))
+        return out + self.cpu_offers()
+
+    def cpu_offers(self) -> list[Offer]:
+        """CPU pods (secure cloud, on-demand only), one offer per flavor and size."""
+        out = []
+        for flavor in CPU_FLAVORS:
+            ram = 2 if flavor.endswith("c") else 4
+            for vcpus in CPU_SIZES:
+                instance = f"{flavor}-{vcpus}-{vcpus * ram}"
+                reply = self._request("POST", GRAPHQL, {"query": CPU_QUERY % (flavor, instance)})
+                for row in (reply.get("data") or {}).get("cpuFlavors") or []:
+                    info = row.get("specifics") or {}
+                    if info.get("securePrice"):
+                        out.append(Offer("cpu", 0, vcpus, float(info["securePrice"]), "SECURE",
+                                         False, info.get("stockStatus") not in (None, "", "None"),
+                                         flavor))
         return out
 
     def create_pod(self, spec: dict[str, Any]) -> dict[str, Any]:

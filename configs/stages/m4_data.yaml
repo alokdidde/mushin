@@ -1,20 +1,20 @@
-# M4: generate the full dataset (~200k decisions) on a CPU pod and upload it to the Hub.
+# M4: generate the full dataset (~200k decisions) on a CPU pod; pod_job.sh uploads it to the Hub.
 name: m4-data
-image: runpod/base:1.0.2-ubuntu2404   # confirm the tag against RunPod's templates before the first start
+image: runpod/base:1.0.2-ubuntu2404   # tag checked on Docker Hub 2026-10-22
 extras: sim,dev
 resources:
   min_gpu_gb: 0
-  min_vcpus: 32
+  min_vcpus: 16   # 32-vCPU CPU pods were out of stock on 2026-10-22
   core_hours_per_unit: 1.6   # measured here: ~0.18 decisions/s/core with frames and counterfactuals
 work_units: 200              # thousands of decisions
 command: >-
   python -m mushin.data.generate --out data/m4 --episodes 80000 --family m4 --workers $(nproc) &&
   python -m mushin.data.splits data/m4 --config configs/data_m0.yaml &&
-  python -m mushin.data.verify data/m4 --reproduce 200 &&
-  hf upload "$MUSHIN_DATA_REPO" data/m4 --repo-type dataset --private
+  python -m mushin.data.verify data/m4 --reproduce 200
 out_dir: data/m4
-max_hours: 14
+max_hours: 22   # 320 core-hours on 16 vCPUs is about 20 h
 disk_gb: 40
 budget_usd: 15
 secrets: [HF_TOKEN]
-env: {MUSHIN_DATA_REPO: alokdidde/mushin-m4}
+# The data repo does not exist yet, so no MUSHIN_DATA_REPO (pod_job.sh would download it).
+env: {MUSHIN_OUT_REPO: alokdidde/mushin-m4, MUSHIN_OUT_REPO_TYPE: dataset}

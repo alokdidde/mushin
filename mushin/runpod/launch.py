@@ -30,6 +30,8 @@ from mushin.runpod.client import RunPodClient
 
 REPO = Path(__file__).resolve().parents[2]
 POLL_S = 60
+#: Time past max_hours before the launcher stops a pod, so its own upload can finish.
+UPLOAD_GRACE_H = 0.5
 JOB_SCRIPT = "scripts/pod_job.sh"
 
 
@@ -51,6 +53,8 @@ def choose(stage: dict[str, Any], offers: list[Offer]) -> list[Ranked]:
     budget = stage.get("budget_usd")
     if budget is not None:
         ranked = [r for r in ranked if r.cap <= budget]
+    # A machine that would hit max_hours first never finishes the job.
+    ranked = [r for r in ranked if r.est_hours <= stage["max_hours"]]
     return ranked
 
 
@@ -83,7 +87,8 @@ def pod_spec(stage: dict[str, Any], pick: Ranked, commit: str) -> dict[str, Any]
                            f"{commit}/{JOB_SCRIPT} | bash"],
     }
     if pick.offer.gpu == "cpu":
-        spec.update(computeType="CPU", vcpuCount=pick.offer.vcpus)
+        spec.update(computeType="CPU", vcpuCount=pick.offer.vcpus,
+                    cpuFlavorIds=[pick.offer.flavor or "cpu3c"])
     else:
         spec.update(computeType="GPU", gpuTypeIds=[pick.offer.gpu], gpuCount=1)
     if stage.get("network_volume_id"):
@@ -104,7 +109,7 @@ def watch(client: RunPodClient, pod_id: str, price_hr: float, cap: float, max_ho
         if status in ("EXITED", "TERMINATED", "STOPPED"):
             report["ended"] = "job finished"
             break
-        if cost >= cap or hours >= max_hours:
+        if cost >= cap or hours >= max_hours + UPLOAD_GRACE_H:
             report["ended"] = "cost cap" if cost >= cap else "max hours"
             client.stop_pod(pod_id)
             break
@@ -162,7 +167,7 @@ def main(argv: list[str] | None = None) -> int:
               "machine": pick.as_dict(), "approved_cap": options.approve_cap}
     print(f"started pod {pod_id}; watching (report: {report_path})")
     try:
-        watch(client, pod_id, pick.offer.price_hr, min(pick.cap, options.approve_cap),
+        watch(client, pod_id, pick.offer.price_hr, options.approve_cap,
               stage["max_hours"], report, report_path)
     except BaseException:
         client.stop_pod(pod_id)
