@@ -1,0 +1,23 @@
+# M5 stage 1: heads only on a frozen Qwen3.5-0.8B (LM head removed).
+stage: warmup
+backbone: {kind: vlm, name: Qwen/Qwen3.5-0.8B, dtype: bfloat16, attn_implementation: sdpa}
+head_width: 256
+data:
+  dir: data/m4
+  train_splits: [train]
+  eval_splits: [val]
+  frames: true
+train:
+  device: auto
+  epochs: 1
+  batch_size: 16
+  head_lr: 1.0e-3
+  warmup_steps: 50
+  log_every: 20
+  eval_every: 500
+  checkpoint_minutes: 15
+  workers: 8
+  seed: 0
+# Minimum machine for the launcher (mushin.runpod): fits 0.8B bf16 activations at batch 16.
+resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_100k: 1.5}
+out: runs/qwen35_08b_warmup

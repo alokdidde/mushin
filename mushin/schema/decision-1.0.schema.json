@@ -1,0 +1,127 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "mushin.decision/1.0",
+  "title": "One planner decision from an uzumaki episode, with counterfactual labels",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "record_id", "episode_id", "step", "body", "protocol", "seed", "faults",
+               "task", "observation", "history", "frames", "options", "teacher", "taken",
+               "labels", "episode", "provenance"],
+  "properties": {
+    "schema": {"const": "mushin.decision/1.0"},
+    "record_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+/[0-9]+$"},
+    "episode_id": {"type": "string", "pattern": "^[A-Za-z0-9_.-]+$"},
+    "step": {"type": "integer", "minimum": 0},
+    "body": {"type": "string"},
+    "protocol": {"type": "string"},
+    "seed": {"type": "string", "pattern": "^mushin-train-"},
+    "faults": {"type": "object"},
+    "task": {
+      "type": "object", "additionalProperties": false, "required": ["protocol", "goal"],
+      "properties": {"protocol": {"type": "string"}, "goal": {"type": "string"}}
+    },
+    "observation": {
+      "type": "object", "required": ["observation_id", "gripper_state"],
+      "properties": {"observation_id": {"type": "string"}, "gripper_state": {"type": "string"}}
+    },
+    "history": {
+      "type": "array",
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["step", "option_id", "parameters", "tool_results"],
+        "properties": {
+          "step": {"type": "integer", "minimum": 0},
+          "option_id": {"type": "string"},
+          "parameters": {"type": ["object", "null"]},
+          "tool_results": {
+            "type": "array",
+            "items": {
+              "type": "object", "additionalProperties": false, "required": ["tool", "status"],
+              "properties": {"tool": {"type": "string"}, "status": {"type": "string"},
+                             "reason": {"type": ["string", "null"]}}
+            }
+          }
+        }
+      }
+    },
+    "frames": {
+      "type": "object", "additionalProperties": false, "required": ["scene", "wrist"],
+      "properties": {"scene": {"type": ["string", "null"]}, "wrist": {"type": ["string", "null"]}}
+    },
+    "options": {
+      "type": "array", "minItems": 1,
+      "items": {
+        "type": "object", "additionalProperties": false, "required": ["option_id", "kind"],
+        "properties": {
+          "option_id": {"type": "string"},
+          "kind": {"enum": ["skill", "abstain"]},
+          "skill_id": {"type": "string"},
+          "skill_version": {"type": "integer"},
+          "card_sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}
+        }
+      }
+    },
+    "teacher": {"$ref": "#/$defs/choice"},
+    "taken": {
+      "allOf": [{"$ref": "#/$defs/choice"}],
+      "required": ["source"],
+      "properties": {"source": {"enum": ["rule", "explore"]}}
+    },
+    "labels": {
+      "type": "object", "additionalProperties": false,
+      "required": ["option_outcomes", "utility", "choice", "choice_soft", "params"],
+      "properties": {
+        "option_outcomes": {"type": "object", "additionalProperties": {"$ref": "#/$defs/outcome"}},
+        "utility": {"type": "object", "additionalProperties": {"type": "number"}},
+        "choice": {"type": "string"},
+        "choice_soft": {"type": "object", "additionalProperties": {"type": "number", "minimum": 0, "maximum": 1}},
+        "params": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "additionalProperties": {
+              "oneOf": [
+                {"type": "object", "additionalProperties": false,
+                 "required": ["kind", "edges", "bin", "value"],
+                 "properties": {"kind": {"const": "bins"}, "edges": {"type": "array", "items": {"type": "number"}},
+                                "bin": {"type": "integer", "minimum": 0}, "value": {"type": "number"}}},
+                {"type": "object", "additionalProperties": false,
+                 "required": ["kind", "values", "index"],
+                 "properties": {"kind": {"const": "enum"}, "values": {"type": "array", "items": {"type": "string"}},
+                                "index": {"type": "integer", "minimum": 0},
+                                "success": {"type": "array", "items": {"type": ["boolean", "null"]}}}}
+              ]
+            }
+          }
+        }
+      }
+    },
+    "episode": {"$ref": "#/$defs/outcome"},
+    "provenance": {
+      "type": "object", "required": ["uzumaki_commit", "mushin_version", "generator", "label_version"],
+      "properties": {"uzumaki_commit": {"type": "string"}, "mushin_version": {"type": "string"},
+                     "generator": {"type": "string"}, "label_version": {"type": "string"}}
+    }
+  },
+  "$defs": {
+    "choice": {
+      "type": "object", "required": ["option_id", "parameters"],
+      "properties": {"option_id": {"type": "string"}, "parameters": {"type": ["object", "null"]},
+                     "outcome": {"$ref": "#/$defs/outcome"}, "source": {"type": "string"}}
+    },
+    "outcome": {
+      "type": "object", "required": ["success", "primary"],
+      "properties": {
+        "success": {"type": ["boolean", "null"]},
+        "primary": {"type": ["string", "null"]},
+        "status": {"type": ["string", "null"]},
+        "violations": {"type": ["integer", "null"]},
+        "decisions_to_end": {"type": ["integer", "null"]},
+        "parameters": {"type": ["object", "null"]},
+        "bundle_head": {"type": ["string", "null"]},
+        "reproduced": {"type": ["boolean", "null"]},
+        "final": {"type": ["object", "null"]}
+      }
+    }
+  }
+}

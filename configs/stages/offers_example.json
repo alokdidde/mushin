@@ -1,0 +1,11 @@
+[
+ {"gpu": "NVIDIA GeForce RTX 3090", "memory_gb": 24, "vcpus": 8, "price_hr": 0.22, "cloud": "COMMUNITY", "spot": false, "available": true},
+ {"gpu": "NVIDIA GeForce RTX 4090", "memory_gb": 24, "vcpus": 8, "price_hr": 0.34, "cloud": "COMMUNITY", "spot": false, "available": true},
+ {"gpu": "NVIDIA GeForce RTX 4090", "memory_gb": 24, "vcpus": 8, "price_hr": 0.20, "cloud": "COMMUNITY", "spot": true, "available": true},
+ {"gpu": "NVIDIA L40S", "memory_gb": 48, "vcpus": 8, "price_hr": 0.79, "cloud": "COMMUNITY", "spot": false, "available": true},
+ {"gpu": "NVIDIA A100 80GB PCIe", "memory_gb": 80, "vcpus": 8, "price_hr": 1.19, "cloud": "COMMUNITY", "spot": false, "available": true},
+ {"gpu": "NVIDIA H100 80GB HBM3", "memory_gb": 80, "vcpus": 16, "price_hr": 2.69, "cloud": "SECURE", "spot": false, "available": true},
+ {"gpu": "NVIDIA RTX A4000", "memory_gb": 16, "vcpus": 8, "price_hr": 0.17, "cloud": "COMMUNITY", "spot": false, "available": true},
+ {"gpu": "cpu", "memory_gb": 0, "vcpus": 32, "price_hr": 0.64, "cloud": "SECURE", "spot": false, "available": true},
+ {"gpu": "cpu", "memory_gb": 0, "vcpus": 64, "price_hr": 1.28, "cloud": "SECURE", "spot": false, "available": true}
+]

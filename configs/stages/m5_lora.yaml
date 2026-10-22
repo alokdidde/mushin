@@ -1,0 +1,20 @@
+# M5 stage 2: LoRA + vision connector from the warm-up heads, then calibration and evaluation.
+name: m5-lora
+image: runpod/base:1.0.2-cuda1281-ubuntu2404   # confirm the tag before the first start
+extras: train,gpu
+resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 1.6}   # unit: 100k decisions x 2 epochs
+work_units: 2
+command: >-
+  hf download alokdidde/mushin-runs --include "m5-warmup/*" --local-dir runs_in &&
+  mkdir -p runs/qwen35_08b_warmup &&
+  cp runs_in/m5-warmup/qwen35_08b_warmup/checkpoint.pt runs/qwen35_08b_warmup/ &&
+  python -m mushin.train.sft --config configs/sft_qwen35_08b_lora.yaml &&
+  python -m mushin.train.calibrate --checkpoint runs/qwen35_08b_lora/checkpoint.pt --data data/m4 &&
+  python -m mushin.eval.run --checkpoint runs/qwen35_08b_lora/checkpoint.pt --data data/m4
+    --out runs/qwen35_08b_lora/eval.json
+out_dir: runs
+max_hours: 6
+budget_usd: 20
+secrets: [HF_TOKEN]
+env: {MUSHIN_DATA_REPO: alokdidde/mushin-m4, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
+      MUSHIN_OUT_PREFIX: m5-lora}

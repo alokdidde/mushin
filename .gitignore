@@ -1,0 +1,9 @@
+__pycache__/
+*.egg-info/
+.venv/
+third_party/
+build/
+runs/
+data_out/
+.pytest_cache/
+.ruff_cache/
