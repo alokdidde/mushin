@@ -144,7 +144,8 @@ def main(argv: list[str] | None = None) -> int:
     print(f"stage {stage['name']}: {stage['work_units']} work units")
     for r in ranked[: options.top]:
         o = r.offer
-        print(f"  {o.gpu:32} {o.cloud:9} {'spot' if o.spot else 'on-demand':9} "
+        name = o.gpu if o.gpu != "cpu" else f"cpu {o.flavor} {o.vcpus} vCPU"
+        print(f"  {name:32} {o.cloud:9} {'spot' if o.spot else 'on-demand':9} "
               f"${o.price_hr:.2f}/h  ~{r.est_hours:.1f} h  ~${r.est_cost:.2f}  cap ${r.cap:.0f}")
     pick = ranked[0]
     print(f"chosen: {pick.offer.gpu} ({pick.offer.cloud}, "

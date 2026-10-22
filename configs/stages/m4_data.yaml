@@ -14,7 +14,7 @@ command: >-
 out_dir: data/m4
 max_hours: 22   # 320 core-hours on 16 vCPUs is about 20 h
 disk_gb: 40
-budget_usd: 15
+budget_usd: 18   # approved by Alok 2026-10-22 for a cpu5c 32-vCPU pod
 secrets: [HF_TOKEN]
 # The data repo does not exist yet, so no MUSHIN_DATA_REPO (pod_job.sh would download it).
 env: {MUSHIN_OUT_REPO: alokdidde/mushin-m4, MUSHIN_OUT_REPO_TYPE: dataset}
