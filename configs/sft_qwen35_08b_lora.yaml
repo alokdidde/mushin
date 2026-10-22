@@ -1,0 +1,28 @@
+# M5 stage 2: LoRA on the language model + the vision connector, from the warm-up heads.
+stage: lora
+init: runs/qwen35_08b_warmup/checkpoint.pt
+backbone: {kind: vlm, name: Qwen/Qwen3.5-0.8B, dtype: bfloat16, attn_implementation: sdpa}
+head_width: 256
+lora: {rank: 16, alpha: 32, dropout: 0.05}
+data:
+  dir: data/m4
+  train_splits: [train]
+  eval_splits: [val]
+  frames: true
+train:
+  device: auto
+  epochs: 2
+  batch_size: 8
+  grad_accum: 2
+  lr: 1.0e-4
+  head_lr: 3.0e-4
+  weight_decay: 0.01
+  warmup_steps: 100
+  log_every: 20
+  eval_every: 1000
+  checkpoint_minutes: 15
+  workers: 8
+  seed: 0
+loss: {choice: 1.0, brier: 0.1, success: 1.0, params: 0.5}
+resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_100k: 4.0}
+out: runs/qwen35_08b_lora

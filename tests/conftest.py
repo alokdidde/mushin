@@ -1,7 +1,11 @@
 import json
+import os
 from pathlib import Path
 
 import pytest
+
+# Headless MuJoCo rendering; must be set before mujoco is first imported.
+os.environ.setdefault("MUJOCO_GL", "egl")
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
