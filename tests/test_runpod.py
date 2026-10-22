@@ -77,3 +77,11 @@ def test_pod_spec_keeps_secrets_out_and_pins_the_commit():
     assert "abc123/scripts/pod_job.sh" in " ".join(spec["dockerStartCmd"])
     assert spec["gpuTypeIds"] == [pick.offer.gpu]
     json.dumps(spec)
+
+
+def test_pod_deadline_keeps_an_orphaned_pod_under_its_cap():
+    stage = launch.load_stage(ROOT / "configs" / "stages" / "m5_warmup.yaml")
+    pick = launch.choose(stage, launch.read_offers(OFFERS))[0]
+    hours = int(launch.pod_spec(stage, pick, "abc")["env"]["MUSHIN_MAX_SECONDS"]) / 3600
+    assert hours <= stage["max_hours"]
+    assert (hours + launch.UPLOAD_GRACE_H) * pick.offer.price_hr <= pick.cap + 1e-6

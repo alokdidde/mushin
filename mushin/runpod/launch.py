@@ -63,11 +63,16 @@ def git_commit() -> str:
                           capture_output=True, text=True).stdout.strip()
 
 
+def pod_deadline_h(stage: dict[str, Any], pick: Ranked) -> float:
+    """Hours the pod's own job may run, so the pod stays under its cap even if the launcher dies."""
+    return min(stage["max_hours"], pick.cap / pick.offer.price_hr - UPLOAD_GRACE_H)
+
+
 def pod_spec(stage: dict[str, Any], pick: Ranked, commit: str) -> dict[str, Any]:
     env = {
         "MUSHIN_COMMIT": commit,
         "MUSHIN_COMMAND": stage["command"],
-        "MUSHIN_MAX_SECONDS": str(int(stage["max_hours"] * 3600)),
+        "MUSHIN_MAX_SECONDS": str(int(pod_deadline_h(stage, pick) * 3600)),
         "MUSHIN_EXTRAS": stage.get("extras", "train"),
         "MUSHIN_OUT_DIR": stage.get("out_dir", "runs"),
         **{k: str(v) for k, v in (stage.get("env") or {}).items()},
