@@ -86,3 +86,7 @@ Results will distinguish standalone model judgments from closed-loop system perf
 - A Hugging Face release if distributable model weights become available.
 
 There is currently no installation command, hosted endpoint, downloadable checkpoint, or Hugging Face release.
+
+## Related work
+
+- Mohamad Yazan Sadoun, Sarah Sharif, and Yaser Mike Banad. **[From Probabilities to Decisions: Search and Multi-Teacher Distillation with Jev](https://arxiv.org/abs/2610.09188)**. arXiv preprint, 2026. Studies compact evaluators distilled from Jev judgments and multi-teacher distillation, providing related work for Mushin’s interest in efficient probabilistic decisions. This reference does not imply that Mushin has implemented or reproduced the paper’s methods or results.
