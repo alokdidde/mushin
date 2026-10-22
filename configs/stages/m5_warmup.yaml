@@ -1,6 +1,6 @@
 # M5 stage 1: decision heads on frozen Qwen3.5-0.8B.
 name: m5-warmup
-image: runpod/base:1.0.2-cuda1281-ubuntu2404   # confirm the tag before the first start
+image: runpod/base:1.0.2-cuda1281-ubuntu2404   # tag checked on Docker Hub 2026-10-22
 extras: train,gpu
 resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 0.4}   # unit: 100k decisions, 4090
 work_units: 2

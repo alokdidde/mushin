@@ -49,6 +49,7 @@ class Offer:
     cloud: str  # "COMMUNITY" or "SECURE"
     spot: bool
     available: bool = True
+    flavor: str = ""  # CPU pods only: RunPod CPU flavor ID, for example "cpu3c"
 
 
 @dataclass(frozen=True)
