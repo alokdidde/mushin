@@ -1,0 +1,15 @@
+# M5 stage 1: decision heads on frozen Qwen3.5-0.8B.
+name: m5-warmup
+image: runpod/base:1.0.2-cuda1281-ubuntu2404   # confirm the tag before the first start
+extras: train,gpu
+resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 0.4}   # unit: 100k decisions, 4090
+work_units: 2
+command: >-
+  python -m mushin.train.sft --config configs/sft_qwen35_08b_warmup.yaml &&
+  python -m mushin.train.calibrate --checkpoint runs/qwen35_08b_warmup/checkpoint.pt --data data/m4
+out_dir: runs
+max_hours: 3
+budget_usd: 10
+secrets: [HF_TOKEN]
+env: {MUSHIN_DATA_REPO: alokdidde/mushin-m4, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
+      MUSHIN_OUT_PREFIX: m5-warmup}
