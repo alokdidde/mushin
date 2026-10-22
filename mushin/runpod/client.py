@@ -55,7 +55,9 @@ class RunPodClient:
     def _request(self, method: str, url: str, body: Any = None) -> Any:
         data = None if body is None else json.dumps(body).encode()
         request = urllib.request.Request(url, data=data, method=method, headers={
-            "Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"})
+            "Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json",
+            # rest.runpod.io rejects urllib's default User-Agent (Cloudflare error 1010).
+            "User-Agent": "mushin-launcher/0.1"})
         try:
             with urllib.request.urlopen(request, timeout=self.timeout) as response:  # noqa: S310
                 text = response.read().decode()
