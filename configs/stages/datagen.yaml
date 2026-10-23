@@ -9,8 +9,7 @@ resources:
   core_hours_per_unit: 2.6   # measured on cpu3c-32 on 2026-10-23: ~0.105 decisions/s/core
 work_units: 210              # thousands of decisions
 command: >-
-  python -m mushin.data.generate --out data/m4 --episodes 80000 --family m4
-    --workers $(( $(nproc) - 2 )) --shard-episodes 500 &&
+  python -m mushin.data.generate --out data/m4 --episodes 80000 --family m4 --workers $(( $(nproc) - 2 )) --shard-episodes 500 &&
   python -m mushin.data.splits data/m4 --config configs/data_m0.yaml &&
   python -m mushin.data.verify data/m4 --reproduce 200
 out_dir: data/m4

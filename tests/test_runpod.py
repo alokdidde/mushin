@@ -85,3 +85,10 @@ def test_pod_deadline_keeps_an_orphaned_pod_under_its_cap():
     hours = int(launch.pod_spec(stage, pick, "abc")["env"]["MUSHIN_MAX_SECONDS"]) / 3600
     assert hours <= stage["max_hours"]
     assert (hours + launch.UPLOAD_GRACE_H) * pick.offer.price_hr <= pick.cap + 1e-6
+
+
+@pytest.mark.parametrize("stage", sorted((ROOT / "configs" / "stages").glob("*.yaml")))
+def test_stage_command_is_one_shell_line(stage):
+    # In a folded YAML block a more-indented line keeps its newline, which splits the command
+    # in two and drops the arguments after it (this hit the first datagen relaunch).
+    assert "\n" not in launch.load_stage(stage)["command"]

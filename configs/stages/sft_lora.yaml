@@ -10,8 +10,7 @@ command: >-
   cp runs_in/sft-warmup/qwen35_08b_warmup/checkpoint.pt runs/qwen35_08b_warmup/ &&
   python -m mushin.train.sft --config configs/sft_qwen35_08b_lora.yaml &&
   python -m mushin.train.calibrate --checkpoint runs/qwen35_08b_lora/checkpoint.pt --data data/m4 &&
-  python -m mushin.eval.run --checkpoint runs/qwen35_08b_lora/checkpoint.pt --data data/m4
-    --out runs/qwen35_08b_lora/eval.json
+  python -m mushin.eval.run --checkpoint runs/qwen35_08b_lora/checkpoint.pt --data data/m4 --out runs/qwen35_08b_lora/eval.json
 out_dir: runs
 max_hours: 6
 budget_usd: 20
