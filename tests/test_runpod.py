@@ -50,7 +50,7 @@ def test_cpu_stage_uses_cpu_offers_only():
     assert [r.offer.vcpus for r in ranked] == [32]
 
 
-@pytest.mark.parametrize("stage", sorted((ROOT / "configs" / "stages").glob("m*.yaml")))
+@pytest.mark.parametrize("stage", sorted((ROOT / "configs" / "stages").glob("*.yaml")))
 def test_dry_run_starts_nothing(stage, capsys, monkeypatch):
     def fail(*args, **kwargs):
         raise AssertionError("dry run must not call the API")
@@ -63,13 +63,13 @@ def test_dry_run_starts_nothing(stage, capsys, monkeypatch):
 
 def test_start_requires_an_approved_cap(monkeypatch, capsys):
     monkeypatch.setattr(launch, "RunPodClient", lambda: pytest.fail("must not start"))
-    stage = ROOT / "configs" / "stages" / "m5_lora.yaml"
+    stage = ROOT / "configs" / "stages" / "keiko.yaml"
     assert launch.main([str(stage), "--offers", str(OFFERS)]) == 3
     assert launch.main([str(stage), "--offers", str(OFFERS), "--approve-cap", "0.5"]) == 3
 
 
 def test_pod_spec_keeps_secrets_out_and_pins_the_commit():
-    stage = launch.load_stage(ROOT / "configs" / "stages" / "m5_warmup.yaml")
+    stage = launch.load_stage(ROOT / "configs" / "stages" / "shoshin.yaml")
     pick = launch.choose(stage, launch.read_offers(OFFERS))[0]
     spec = launch.pod_spec(stage, pick, "abc123")
     assert spec["env"]["MUSHIN_COMMIT"] == "abc123"
@@ -80,7 +80,7 @@ def test_pod_spec_keeps_secrets_out_and_pins_the_commit():
 
 
 def test_pod_deadline_keeps_an_orphaned_pod_under_its_cap():
-    stage = launch.load_stage(ROOT / "configs" / "stages" / "m5_warmup.yaml")
+    stage = launch.load_stage(ROOT / "configs" / "stages" / "shoshin.yaml")
     pick = launch.choose(stage, launch.read_offers(OFFERS))[0]
     hours = int(launch.pod_spec(stage, pick, "abc")["env"]["MUSHIN_MAX_SECONDS"]) / 3600
     assert hours <= stage["max_hours"]

@@ -1,5 +1,5 @@
-# M4: generate the full dataset (~200k decisions) on a CPU pod; pod_job.sh uploads it to the Hub.
-name: m4-data
+# Kata (M4): generate the full dataset (~200k decisions) on a CPU pod; pod_job.sh uploads it to the Hub.
+name: kata
 image: runpod/base:1.0.2-ubuntu2404   # tag checked on Docker Hub 2026-10-22
 extras: sim,dev
 resources:
