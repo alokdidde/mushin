@@ -1,8 +1,8 @@
 """Run one training stage on RunPod: choose the machine, start it under a cost cap, watch it,
 and stop it.
 
-    python -m mushin.runpod.launch configs/stages/shoshin.yaml --dry-run [--offers FILE]
-    python -m mushin.runpod.launch configs/stages/shoshin.yaml --approve-cap 12
+    python -m mushin.runpod.launch configs/stages/sft_warmup.yaml --dry-run [--offers FILE]
+    python -m mushin.runpod.launch configs/stages/sft_warmup.yaml --approve-cap 12
 
 ``--dry-run`` prints the ranked machines and the chosen one's estimated hours, cost and cap and
 starts nothing (``--offers`` reads a saved offer list instead of the live API). A real start
