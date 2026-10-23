@@ -41,3 +41,19 @@ def test_manifest_keeps_episodes_whole_and_pins_records(tmp_path, small_dir):
 def test_verify_accepts_the_fixture(small_dir):
     records, problems = check_records(small_dir)
     assert records and problems == []
+
+
+def test_finalize_rebuilds_a_cut_short_run(tmp_path, small_dir):
+    from mushin.data.finalize import finalize
+    from mushin.data.splits import read_records
+
+    shutil.copytree(small_dir, tmp_path / "d")
+    data = tmp_path / "d"
+    lines = (data / "records.jsonl").read_text().splitlines(keepends=True)
+    (data / "records.jsonl").unlink()
+    (data / "records.partial.jsonl").write_text("".join(reversed(lines)) + '{"torn')
+    assert finalize(data) == len(lines)
+    keys = [(r["episode_id"], r["step"]) for r in read_records(data / "records.jsonl")]
+    assert keys == sorted(keys)
+    assert json.loads((data / "stats.json").read_text())["complete"] is False
+    build(data, CONFIG)
