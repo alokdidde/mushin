@@ -17,4 +17,5 @@ max_hours: 6
 budget_usd: 20
 secrets: [HF_TOKEN]
 env: {MUSHIN_DATA_REPO: alokdidde/mushin-sim-decisions-v1, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
-      MUSHIN_OUT_PREFIX: sft-lora}
+      MUSHIN_OUT_PREFIX: sft-lora,
+      MUSHIN_RESUME: 1, MUSHIN_SYNC_OUT: 1}

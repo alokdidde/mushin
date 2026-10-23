@@ -259,16 +259,24 @@ def main(argv: list[str] | None = None) -> int:
                                          "eligibility_rule": card.eligibility_rule,
                                          "observation_fields": list(card.observation_fields)}
     (out / "cards.json").write_text(json.dumps(cards, indent=1, sort_keys=True))
+    # Resume: episodes already in shards/ (downloaded by pod_job.sh after a pod died) are skipped.
+    done_ids = {json.loads(line)["episode_id"]
+                for path in out.glob("shards/*/records.jsonl")
+                for line in path.read_text().splitlines() if line.strip()}
     jobs = [
         (names[i % len(names)], options.family, i, options.epsilon, str(out),
          not options.no_frames, root)
         for i in range(options.start, options.start + options.episodes)
+        if episode_seed(options.family, names[i % len(names)], i).removeprefix(
+            B.TRAIN_SEED_PREFIX) not in done_ids
     ]
+    if done_ids:
+        print(f"resuming: {len(done_ids)} episodes already in shards/", flush=True)
     started = time.monotonic()
     results = []
     tally = RecordTally()
     shard: list[dict[str, Any]] = []
-    shards = 0
+    shards = len(list(out.glob("shards/s*")))
     context = multiprocessing.get_context("spawn")
     # Records are appended as each episode finishes, so a run cut off by its deadline (or a
     # hung worker) still leaves every finished episode on disk. Only slim per-episode results
@@ -302,9 +310,14 @@ def main(argv: list[str] | None = None) -> int:
         pool.terminate()
     if options.shard_episodes and shard:
         write_shard(out, shards, shard)
+    if options.shard_episodes:
+        # The shards hold every episode, including those of earlier pods when resuming.
+        with (out / "records.partial.jsonl").open("w") as handle:
+            for path in sorted(out.glob("shards/*/records.jsonl")):
+                handle.write(path.read_text())
     count, digest = write_sorted(out / "records.partial.jsonl", out / "records.jsonl")
     stats = {
-        "episodes": len(results),
+        "episodes": len(results) + len(done_ids),
         "complete": len(results) == len(jobs),
         "decisions": count,
         "records_sha256": digest,

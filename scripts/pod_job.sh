@@ -72,6 +72,22 @@ if [ -n "${MUSHIN_DATA_REPO:-}" ]; then
   hf download "$MUSHIN_DATA_REPO" --repo-type dataset --local-dir "${MUSHIN_DATA_DIR:-data/m4}" \
     || exit 14
 fi
+if [ -n "${MUSHIN_RESUME:-}" ] && [ -n "${MUSHIN_OUT_REPO:-}" ]; then
+  # Resume after a pod died: fetch what earlier pods uploaded (shard records, checkpoints; not
+  # the frame tars, which are already on the Hub) into OUT_DIR and let the job continue from it.
+  prefix="${MUSHIN_OUT_PREFIX:+$MUSHIN_OUT_PREFIX/}"
+  if hf download "$MUSHIN_OUT_REPO" --repo-type "${MUSHIN_OUT_REPO_TYPE:-model}" \
+       --include "${prefix}*" --exclude "*.tar" --local-dir "$WORK/.resume" >/dev/null 2>&1 \
+     && [ -d "$WORK/.resume/$prefix" ]; then
+    mkdir -p "$WORK/$OUT_DIR" && cp -r --update=none "$WORK/.resume/$prefix". "$WORK/$OUT_DIR/"
+    for shard in "$WORK/$OUT_DIR"/shards/*/; do
+      [ -d "$shard" ] && touch "$shard/DONE" "$shard/UPLOADED"
+    done
+    log "resumed from $MUSHIN_OUT_REPO/$prefix"
+  else
+    log "nothing to resume"
+  fi
+fi
 if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
   # Heartbeat: finished shards go up every 5 min, and progress.json (if the job writes one)
   # every 30 min.
@@ -80,6 +96,9 @@ if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
      beat=$((beat + 1))
      [ $((beat % 6)) -eq 0 ] && [ -f "$WORK/$OUT_DIR/progress.json" ] \
        && hub_upload "$WORK/$OUT_DIR/progress.json" progress.json
+     # MUSHIN_SYNC_OUT: training stages push their checkpoints every 30 min, for MUSHIN_RESUME.
+     [ $((beat % 6)) -eq 0 ] && [ -n "${MUSHIN_SYNC_OUT:-}" ] && [ -d "$WORK/$OUT_DIR" ] \
+       && hub_upload "$WORK/$OUT_DIR" "" --exclude "images/*" --exclude "shards/*"
    done) &
   HEARTBEAT=$!
 fi
