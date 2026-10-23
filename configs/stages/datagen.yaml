@@ -1,5 +1,5 @@
-# M4: generate the full dataset (~200k decisions) on a CPU pod; pod_job.sh uploads it to the Hub.
-name: m4-data
+# Data generation (M4): generate the full dataset (~200k decisions) on a CPU pod; pod_job.sh uploads it to the Hub.
+name: datagen
 image: runpod/base:1.0.2-ubuntu2404   # tag checked on Docker Hub 2026-10-22
 extras: sim,dev
 resources:
@@ -17,4 +17,4 @@ disk_gb: 40
 budget_usd: 18   # approved by Alok 2026-10-22 for a cpu5c 32-vCPU pod
 secrets: [HF_TOKEN]
 # The data repo does not exist yet, so no MUSHIN_DATA_REPO (pod_job.sh would download it).
-env: {MUSHIN_OUT_REPO: alokdidde/mushin-m4, MUSHIN_OUT_REPO_TYPE: dataset}
+env: {MUSHIN_OUT_REPO: alokdidde/mushin-sim-decisions-v1, MUSHIN_OUT_REPO_TYPE: dataset}
