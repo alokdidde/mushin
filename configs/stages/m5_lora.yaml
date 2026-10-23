@@ -16,5 +16,5 @@ out_dir: runs
 max_hours: 6
 budget_usd: 20
 secrets: [HF_TOKEN]
-env: {MUSHIN_DATA_REPO: alokdidde/mushin-m4, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
+env: {MUSHIN_DATA_REPO: alokdidde/mushin-kata-v1, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
       MUSHIN_OUT_PREFIX: m5-lora}
