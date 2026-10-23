@@ -3,7 +3,7 @@ import shutil
 
 import pytest
 
-from mushin.data.splits import build, load, split_of
+from mushin.data.splits import build, load, read_records, split_of
 from mushin.data.verify import check_records
 
 CONFIG = {"held_out_bodies": ["go1"], "held_out_protocols": ["handover-v1"],
@@ -57,3 +57,28 @@ def test_finalize_rebuilds_a_cut_short_run(tmp_path, small_dir):
     assert keys == sorted(keys)
     assert json.loads((data / "stats.json").read_text())["complete"] is False
     build(data, CONFIG)
+
+
+def test_shards_round_trip_records_and_frames(tmp_path, small_dir, small_records):
+    from mushin.data.finalize import finalize, unpack_shards, write_shard
+
+    run = tmp_path / "run"
+    for record in small_records:
+        for path in record["frames"].values():
+            if path:
+                (run / path).parent.mkdir(parents=True, exist_ok=True)
+                (run / path).write_bytes(path.encode())
+    half = len(small_records) // 2
+    write_shard(run, 0, small_records[half:])
+    write_shard(run, 1, small_records[:half])
+    assert (run / "shards" / "s00001" / "DONE").exists()
+
+    hub = tmp_path / "hub"  # what a download of the uploaded shards gives
+    shutil.copytree(run / "shards", hub / "shards")
+    assert unpack_shards(hub) == 2
+    assert finalize(hub) == len(small_records)
+    for record in read_records(hub / "records.jsonl"):
+        for path in record["frames"].values():
+            if path:
+                assert (hub / path).read_bytes() == path.encode()
+    build(hub, CONFIG)
