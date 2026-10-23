@@ -5,6 +5,7 @@ extras: train,gpu
 resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 0.4}   # unit: 100k decisions, 4090
 work_units: 2
 command: >-
+  python -m mushin.data.finalize data/m4 --config configs/data_m0.yaml &&
   python -m mushin.train.sft --config configs/sft_qwen35_08b_warmup.yaml &&
   python -m mushin.train.calibrate --checkpoint runs/qwen35_08b_warmup/checkpoint.pt --data data/m4
 out_dir: runs
