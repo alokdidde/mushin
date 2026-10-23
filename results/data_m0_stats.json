@@ -1,0 +1,55 @@
+{
+  "episodes": 800,
+  "decisions": 2066,
+  "records_sha256": "e17d56c423b642745a130b7e6fc7b9ffafe88a412a5639bb81d9ea2140f66438",
+  "wall_s": 2910.6,
+  "workers": 4,
+  "cpu_s": {
+    "episode": 3461.6,
+    "render": 2671.2,
+    "label": 8128.8
+  },
+  "image_bytes": 30054038,
+  "episodes_by_body": {
+    "so101": 100,
+    "panda": 100,
+    "spot": 100,
+    "g1": 100,
+    "go1": 100,
+    "aloha": 100,
+    "tidybot": 100,
+    "go1_walk": 100
+  },
+  "episode_outcomes": {
+    "abstained": 76,
+    "completed": 394,
+    "cancelled": 21,
+    "budget_exhausted": 93,
+    "unreachable_target": 101,
+    "misgrasp": 40,
+    "placement_failure": 4,
+    "evaluation_failure": 24,
+    "missing_observation": 11,
+    "partial_progress": 24,
+    "collision": 3,
+    "tool_rejected": 9
+  },
+  "choice_targets": {
+    "pick-and-place": 404,
+    "pick-box": 464,
+    "place-box": 488,
+    "abstain": 376,
+    "go-to": 262,
+    "hand-over": 72
+  },
+  "taken_source": {
+    "explore": 643,
+    "rule": 1423
+  },
+  "option_success_rate": 0.618,
+  "unreproduced": 0,
+  "teacher_matches_target": 0.62,
+  "uzumaki_commit": "2bf3a3341cb85f737a38192f1a6032d61336d3d4",
+  "family": "m0",
+  "epsilon": 0.3
+}

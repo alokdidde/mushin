@@ -1,7 +1,7 @@
 # CPU smoke run (M1 gate): a tiny byte-level transformer overfits 200 records end to end.
 stage: lora            # tiny backbone: trained in full in this stage
-backbone: {kind: tiny, hidden_size: 64, layers: 2, heads: 4}
-head_width: 64
+backbone: {kind: tiny, hidden_size: 128, layers: 3, heads: 4}
+head_width: 128
 data:
   dir: data/m0
   train_splits: null   # null: every record, no splits.json needed
@@ -10,10 +10,10 @@ data:
   frames: true
 train:
   device: cpu
-  epochs: 40
+  epochs: 100
   batch_size: 16
-  lr: 1.0e-3
-  head_lr: 1.0e-3
+  lr: 2.0e-3
+  head_lr: 2.0e-3
   warmup_steps: 20
   log_every: 25
   seed: 0

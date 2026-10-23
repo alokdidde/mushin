@@ -6,7 +6,7 @@ Mushin aims to turn context and a focused question into a bounded decision that 
 
 ## Current status
 
-Milestone M0 (data) is implemented: a versioned decision record format and a generator that produces labelled decisions with camera frames from [uzumaki](https://github.com/alokdidde/uzumaki)'s MuJoCo scenes. Model code, training, released weights and benchmark results are not yet available; the interfaces further below illustrate the intended design and are not a working API.
+Milestones M0 to M3 (data, model and training code, baselines, RunPod launcher) are implemented, and no GPU training has been run yet. M0 provides a versioned decision record format and a generator that produces labelled decisions with camera frames from [uzumaki](https://github.com/alokdidde/uzumaki)'s MuJoCo scenes. Trained weights and model results are not yet available; the interfaces further below illustrate the intended design and are not a working API.
 
 ### Data generation (M0)
 
@@ -35,6 +35,42 @@ Many decisions inside an agent or robot controller are narrow: Is this skill app
 Mushin will investigate whether a compact model trained for bounded judgments can make these decisions efficiently while producing probabilities that can be evaluated for calibration. A valid output type alone does not establish that a judgment is correct or that its confidence is calibrated.
 
 The project is inspired by [TypeSafe AI’s Jev and its System One model framing](https://typesafe.ai/blog/introducing-system-one-models-and-jev). Mushin is an independent project, with no affiliation to TypeSafe AI and no claim to reproduce Jev’s proprietary architecture, training method, or reported performance.
+
+### Model and training (M1)
+
+`mushin.model` follows the published Valen/agent-jev recipe in Mushin's own code. The backbone is Qwen3.5-0.8B (`Qwen3_5Model`: vision tower, connector and language model) with its LM head removed. Each decision is one shared-state pass over the task card, observation, recent steps, scene and wrist frames, and every option with its skill card. Typed heads read the hidden states at marked tokens:
+
+- **choice:** dot product between the final `Decide` token and each option's last token, abstain included;
+- **yes/no:** P(success) for each skill option;
+- **value bins / enums:** a distribution over bins for each number parameter and over the allowed values of each enum.
+
+Training (`mushin.train.sft`) has two stages. First a warm-up on the heads with the backbone frozen, then LoRA on the language model plus the vision connector. The objective is soft cross-entropy plus 0.1 Brier on the choice, BCE on success, and CE on parameters. Options are shuffled every epoch. `mushin.train.calibrate` fits the choice and success temperatures on the calibration split, and `mushin.eval.run` reports accuracy, NLL, Brier, ECE and risk-coverage per split and per body.
+
+```bash
+uv pip install -e ".[train,dev]"
+python -m mushin.train.sft --config configs/sft_tiny.yaml            # CPU smoke run
+python -m mushin.train.sft --config configs/sft_qwen35_08b_warmup.yaml
+python -m mushin.train.sft --config configs/sft_qwen35_08b_lora.yaml
+python -m mushin.train.calibrate --checkpoint runs/qwen35_08b_lora/checkpoint.pt --data data/m4
+```
+
+### Baselines (M2)
+
+`python -m mushin.eval.baselines DATA_DIR --out results/baselines_m0.json` scores three baselines with the model's metrics: uzumaki's rule selector with fitted smoothing, a frequency table, and a linear conditional-logit model over decision-time features. Frozen numbers for the M0 sample set (2,066 decisions, 800 episodes, Go1 held out) are in [`results/`](results/). Choice accuracy against the counterfactual target:
+
+| Baseline | val | test | test_body (Go1) |
+| --- | --- | --- | --- |
+| rule selector | 0.687 | 0.670 | 0.469 |
+| frequency | 0.707 | 0.795 | 0.680 |
+| linear | 0.717 | 0.773 | 0.689 |
+
+The linear model's P(success) reaches AUROC 0.81 on val, and the M1 gate run (`configs/sft_tiny.yaml`) fits 200 records to within 0.03 nats of the soft target ([`results/m1_overfit_tiny.json`](results/m1_overfit_tiny.json)).
+
+### RunPod, latency and uzumaki (M3)
+
+- `python -m mushin.runpod.launch configs/stages/<stage>.yaml --dry-run` ranks the live RunPod offers that fit the stage by estimated total cost (price per hour times estimated hours, using measured throughput once a benchmark exists), then prints the choice and its cost cap. A real start needs `--approve-cap` at or above that cap. The launcher stops the pod when the job ends, when the cost reaches the cap, or at `max_hours`, and the pod also stops itself (`scripts/pod_job.sh`). `configs/stages/offers_example.json` holds illustrative prices for offline tests, not live quotes.
+- `python -m mushin.export.latency` times preprocessing and the forward pass at batch size 1 on real records. ONNX/TensorRT export for the Jetson Orin Nano is milestone M7.
+- `mushin.uzumaki_adapter.MushinPlanner` is an uzumaki `DecisionSource`. It renders frames through the sim frame hook, abstains when abstain wins or confidence is low, and returns decisions in the rule selector's shape.
 
 ## Intended decision interface
 

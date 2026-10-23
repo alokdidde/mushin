@@ -35,7 +35,13 @@ def load_config(path: Path, overrides: list[str] = ()) -> dict[str, Any]:
         *parents, leaf = key.split(".")
         for name in parents:
             node = node.setdefault(name, {})
-        node[leaf] = yaml.safe_load(value)
+        parsed = yaml.safe_load(value)
+        if isinstance(parsed, str):  # YAML 1.1 reads "2e-3" as a string
+            try:
+                parsed = float(parsed)
+            except ValueError:
+                pass
+        node[leaf] = parsed
     return config
 
 

@@ -1,0 +1,30 @@
+{
+ "steps": 1300,
+ "train_s": 2408.7,
+ "train_records": 200,
+ "eval_records": 200,
+ "eval": {
+  "choice": {
+   "n": 200,
+   "accuracy": 0.865,
+   "nll": 0.5709056585052178,
+   "soft_nll": 0.7596640676249058,
+   "brier": 0.32719005583004857,
+   "ece": 0.241957101970911,
+   "aurc": 0.04792087062963067,
+   "risk@0.5": 0.050000000000000044,
+   "risk@0.8": 0.09375,
+   "risk@1": 0.135
+  },
+  "success": {
+   "n": 584,
+   "accuracy": 0.9931506849315068,
+   "brier": 0.005175785513309233,
+   "ece": 0.007911735833384803,
+   "auroc": 0.9997347815104825,
+   "base_rate": 0.6335616438356164
+  },
+  "params_accuracy": 0.9947089947089947
+ },
+ "note": "M1 overfit gate on the first 200 records of data/m0 (records sha256 e17d56c4...), tiny byte-level backbone (hidden 128, 3 layers) on CPU. The choice target is soft: its mean entropy on these records is 0.726 nats, so soft_nll 0.760 leaves KL 0.03; 9% of records have tied best options, which caps hard-target accuracy near 0.95."
+}
