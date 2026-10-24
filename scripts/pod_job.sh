@@ -99,9 +99,12 @@ if [ "$EXTRAS" != "${EXTRAS/sim/}" ]; then
   scripts/fetch_uzumaki.sh || exit 13
 fi
 if [ -n "${MUSHIN_DATA_REPO:-}" ]; then
+  # Inputs go on the container disk, linked into the checkout: unpacking 400k frames onto the
+  # /workspace volume took over 15 minutes on some hosts.
+  DATA_DIR="${MUSHIN_DATA_DIR:-data/m4}"
   log "downloading $MUSHIN_DATA_REPO"
-  hf download "$MUSHIN_DATA_REPO" --repo-type dataset --local-dir "${MUSHIN_DATA_DIR:-data/m4}" \
-    || exit 14
+  hf download "$MUSHIN_DATA_REPO" --repo-type dataset --local-dir /tmp/mushin-data || exit 14
+  mkdir -p "$(dirname "$DATA_DIR")" && ln -sfn /tmp/mushin-data "$DATA_DIR"
 fi
 if [ -n "${MUSHIN_RESUME:-}" ] && [ -n "${MUSHIN_OUT_REPO:-}" ]; then
   # Resume after a pod died: fetch what earlier pods uploaded (shard records, checkpoints; not
