@@ -85,7 +85,12 @@ def pod_spec(stage: dict[str, Any], pick: Ranked, commit: str) -> dict[str, Any]
         "imageName": stage["image"],
         "cloudType": pick.offer.cloud,
         "interruptible": pick.offer.spot,
-        "containerDiskInGb": stage.get("disk_gb", 60),
+        # pod_job.sh works under /workspace, which RunPod mounts as a separate volume (20 GB
+        # unless asked): disk_gb sizes that volume. The container disk only holds the image,
+        # caches and the pod log.
+        "containerDiskInGb": 30,
+        "volumeInGb": stage.get("disk_gb", 60),
+        "volumeMountPath": "/workspace",
         "env": env,
         "dockerStartCmd": ["bash", "-c",
                            f"curl -fsSL https://raw.githubusercontent.com/alokdidde/mushin/"

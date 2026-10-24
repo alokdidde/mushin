@@ -9,9 +9,10 @@ EXTRAS="${MUSHIN_EXTRAS:-train}"
 WORK=/workspace/mushin
 log() { echo "[mushin $(date -u +%H:%M:%S)] $*"; }
 # Everything the pod prints also goes to a file that finish() uploads, so a job that fails
-# before it writes any output still leaves its log on the Hub.
-LOG=/workspace/pod_job.log
-mkdir -p /workspace && exec > >(tee -a "$LOG") 2>&1
+# before it writes any output still leaves its log on the Hub. It lives on the container disk,
+# so it survives a full /workspace volume.
+LOG=/tmp/pod_job.log
+exec > >(tee -a "$LOG") 2>&1
 
 hub_upload() {  # hub_upload LOCAL_PATH PATH_IN_REPO [extra hf upload args]
   local local_path=$1 repo_path=$2; shift 2
@@ -38,6 +39,7 @@ upload_shards() {
 finish() {
   status=$?
   log "job exit status $status"
+  df -h / /workspace 2>/dev/null
   [ -n "${HEARTBEAT:-}" ] && kill "$HEARTBEAT" 2>/dev/null
   if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
     mkdir -p "$WORK/$OUT_DIR" && cp "$LOG" "$WORK/$OUT_DIR/pod_job.log"
