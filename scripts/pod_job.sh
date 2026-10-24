@@ -8,6 +8,10 @@ OUT_DIR="${MUSHIN_OUT_DIR:-runs}"
 EXTRAS="${MUSHIN_EXTRAS:-train}"
 WORK=/workspace/mushin
 log() { echo "[mushin $(date -u +%H:%M:%S)] $*"; }
+# Everything the pod prints also goes to a file that finish() uploads, so a job that fails
+# before it writes any output still leaves its log on the Hub.
+LOG=/workspace/pod_job.log
+mkdir -p /workspace && exec > >(tee -a "$LOG") 2>&1
 
 hub_upload() {  # hub_upload LOCAL_PATH PATH_IN_REPO [extra hf upload args]
   local local_path=$1 repo_path=$2; shift 2
@@ -35,7 +39,8 @@ finish() {
   status=$?
   log "job exit status $status"
   [ -n "${HEARTBEAT:-}" ] && kill "$HEARTBEAT" 2>/dev/null
-  if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ] && [ -d "$WORK/$OUT_DIR" ]; then
+  if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
+    mkdir -p "$WORK/$OUT_DIR" && cp "$LOG" "$WORK/$OUT_DIR/pod_job.log"
     echo "{\"status\": $status, \"pod\": \"${RUNPOD_POD_ID:-}\"}" > "$WORK/$OUT_DIR/pod_status.json"
     upload_shards
     # Loose frames stay out: the Hub caps a folder at 10k files, and the shards carry them.
