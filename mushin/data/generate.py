@@ -13,7 +13,6 @@ by content hash, and task cards by protocol) and ``stats.json``.
 from __future__ import annotations
 
 import argparse
-import hashlib
 import json
 import multiprocessing
 import random
@@ -26,6 +25,7 @@ import mushin
 from mushin.data import bodies as B
 from mushin.data.counterfactual import label_step, outcome_of
 from mushin.data.explore import Explorer, as_choice, offered
+from mushin.data.finalize import write_shard, write_sorted
 from mushin.data.labels import LABEL_VERSION, choice_targets, parameter_labels
 from mushin.schema import ABSTAIN, SCHEMA_ID, option_id, validate_record
 
@@ -194,6 +194,37 @@ def run_episode(job: tuple[str, str, int, float, str, bool, str]) -> dict[str, A
     }
 
 
+class RecordTally:
+    """Record-level stats, counted as records stream past instead of held in memory."""
+
+    def __init__(self) -> None:
+        self.count = 0
+        self.choice_targets: Counter[str] = Counter()
+        self.taken_source: Counter[str] = Counter()
+        self.successes = self.labelled = self.unreproduced = self.teacher_matches = 0
+
+    def add(self, r: dict[str, Any]) -> None:
+        self.count += 1
+        choice = r["labels"]["choice"]
+        self.choice_targets["abstain" if choice == ABSTAIN else choice.split("@")[0]] += 1
+        self.taken_source[r["taken"]["source"]] += 1
+        for o in r["labels"]["option_outcomes"].values():
+            if o["success"] is not None:
+                self.successes += o["success"]
+                self.labelled += 1
+            self.unreproduced += o.get("reproduced") is False
+        self.teacher_matches += r["teacher"]["option_id"] == choice
+
+    def stats(self) -> dict[str, Any]:
+        return {
+            "choice_targets": dict(self.choice_targets),
+            "taken_source": dict(self.taken_source),
+            "option_success_rate": round(self.successes / max(1, self.labelled), 3),
+            "unreproduced": self.unreproduced,
+            "teacher_matches_target": round(self.teacher_matches / max(1, self.count), 3),
+        }
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="python -m mushin.data.generate", description=__doc__)
     parser.add_argument("--out", type=Path, required=True)
@@ -205,6 +236,8 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--workers", type=int, default=max(1, multiprocessing.cpu_count()))
     parser.add_argument("--no-frames", action="store_true")
     parser.add_argument("--uzumaki", type=Path, default=None)
+    parser.add_argument("--shard-episodes", type=int, default=0,
+                        help="also write shards/ of this many episodes each (0: off)")
     parser.add_argument("--stall-s", type=float, default=1800.0,
                         help="stop early when no episode finishes for this long")
     options = parser.parse_args(argv)
@@ -226,17 +259,29 @@ def main(argv: list[str] | None = None) -> int:
                                          "eligibility_rule": card.eligibility_rule,
                                          "observation_fields": list(card.observation_fields)}
     (out / "cards.json").write_text(json.dumps(cards, indent=1, sort_keys=True))
+    # Resume: episodes already in shards/ (downloaded by pod_job.sh after a pod died) are skipped.
+    done_ids = {json.loads(line)["episode_id"]
+                for path in out.glob("shards/*/records.jsonl")
+                for line in path.read_text().splitlines() if line.strip()}
     jobs = [
         (names[i % len(names)], options.family, i, options.epsilon, str(out),
          not options.no_frames, root)
         for i in range(options.start, options.start + options.episodes)
+        if episode_seed(options.family, names[i % len(names)], i).removeprefix(
+            B.TRAIN_SEED_PREFIX) not in done_ids
     ]
+    if done_ids:
+        print(f"resuming: {len(done_ids)} episodes already in shards/", flush=True)
     started = time.monotonic()
     results = []
+    tally = RecordTally()
+    shard: list[dict[str, Any]] = []
+    shards = len(list(out.glob("shards/s*")))
     context = multiprocessing.get_context("spawn")
     # Records are appended as each episode finishes, so a run cut off by its deadline (or a
-    # hung worker) still leaves every finished episode on disk for the upload.
-    with context.Pool(options.workers, maxtasksperchild=50) as pool, \
+    # hung worker) still leaves every finished episode on disk. Only slim per-episode results
+    # stay in memory: holding every record OOM-killed a 32-worker run.
+    with context.Pool(options.workers, maxtasksperchild=20) as pool, \
             (out / "records.partial.jsonl").open("w") as partial:
         pending = pool.imap_unordered(run_episode, jobs)
         for done in range(1, len(jobs) + 1):
@@ -245,34 +290,37 @@ def main(argv: list[str] | None = None) -> int:
             except multiprocessing.TimeoutError:
                 print(f"no episode finished in {options.stall_s:.0f} s; stopping early", flush=True)
                 break
+            records = result.pop("records")
+            result["decisions"] = len(records)
             results.append(result)
-            for record in result["records"]:
+            for record in records:
                 partial.write(json.dumps(record, sort_keys=True) + "\n")
+                tally.add(record)
             partial.flush()
+            shard.extend(records)
+            if options.shard_episodes and done % options.shard_episodes == 0:
+                write_shard(out, shards, shard)
+                shards, shard = shards + 1, []
             if done % 25 == 0 or done == len(jobs):
                 elapsed = time.monotonic() - started
                 print(f"{done}/{len(jobs)} episodes, {elapsed:.0f} s", flush=True)
                 (out / "progress.json").write_text(json.dumps({
-                    "episodes_done": done, "episodes": len(jobs),
-                    "decisions": sum(len(r["records"]) for r in results),
-                    "elapsed_s": round(elapsed)}))
+                    "episodes_done": done, "episodes": len(jobs), "decisions": tally.count,
+                    "shards": shards, "elapsed_s": round(elapsed)}))
         pool.terminate()
-    results.sort(key=lambda r: r["index"])
-    digest = hashlib.sha256()
-    count = 0
-    with (out / "records.jsonl").open("w") as handle:
-        for result in results:
-            for record in result["records"]:
-                line = json.dumps(record, sort_keys=True) + "\n"
-                digest.update(line.encode())
-                handle.write(line)
-                count += 1
-    records = [r for result in results for r in result["records"]]
+    if options.shard_episodes and shard:
+        write_shard(out, shards, shard)
+    if options.shard_episodes:
+        # The shards hold every episode, including those of earlier pods when resuming.
+        with (out / "records.partial.jsonl").open("w") as handle:
+            for path in sorted(out.glob("shards/*/records.jsonl")):
+                handle.write(path.read_text())
+    count, digest = write_sorted(out / "records.partial.jsonl", out / "records.jsonl")
     stats = {
-        "episodes": len(results),
+        "episodes": len(results) + len(done_ids),
         "complete": len(results) == len(jobs),
         "decisions": count,
-        "records_sha256": digest.hexdigest(),
+        "records_sha256": digest,
         "wall_s": round(time.monotonic() - started, 1),
         "workers": options.workers,
         "cpu_s": {
@@ -283,21 +331,7 @@ def main(argv: list[str] | None = None) -> int:
         "image_bytes": sum(r["image_bytes"] for r in results),
         "episodes_by_body": dict(Counter(r["body"] for r in results)),
         "episode_outcomes": dict(Counter(str(r["primary"]) for r in results)),
-        "choice_targets": dict(Counter(
-            "abstain" if r["labels"]["choice"] == ABSTAIN else r["labels"]["choice"].split("@")[0]
-            for r in records)),
-        "taken_source": dict(Counter(r["taken"]["source"] for r in records)),
-        "option_success_rate": round(
-            sum(o["success"] for r in records for o in r["labels"]["option_outcomes"].values()
-                if o["success"] is not None)
-            / max(1, sum(1 for r in records for o in r["labels"]["option_outcomes"].values()
-                         if o["success"] is not None)), 3),
-        "unreproduced": sum(
-            1 for r in records for o in r["labels"]["option_outcomes"].values()
-            if o.get("reproduced") is False),
-        "teacher_matches_target": round(
-            sum(r["teacher"]["option_id"] == r["labels"]["choice"] for r in records)
-            / max(1, count), 3),
+        **tally.stats(),
         "uzumaki_commit": B.PINNED_COMMIT,
         "family": options.family,
         "epsilon": options.epsilon,
@@ -306,7 +340,6 @@ def main(argv: list[str] | None = None) -> int:
     (out / "records.partial.jsonl").unlink()
     print(json.dumps(stats, indent=2))
     return 0
-
 
 if __name__ == "__main__":
     raise SystemExit(main())

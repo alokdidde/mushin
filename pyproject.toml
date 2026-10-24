@@ -13,7 +13,7 @@ dependencies = ["jsonschema>=4.23", "pyyaml>=6.0", "numpy>=2"]
 [project.optional-dependencies]
 # MuJoCo data generation needs an uzumaki checkout too (scripts/fetch_uzumaki.sh).
 sim = ["mujoco==3.14.0", "numpy==2.5.4", "onnxruntime==1.31.0", "pillow>=11"]
-train = ["torch>=2.6", "transformers>=5.20", "peft>=0.21", "safetensors", "pillow>=11",
+train = ["torch>=2.6", "torchvision", "transformers>=5.20", "peft>=0.21", "safetensors", "pillow>=11",
          "numpy>=2"]
 # Fast Gated DeltaNet kernels for Qwen3.5's linear-attention layers on CUDA (the PyTorch
 # fallback is correct but much slower).

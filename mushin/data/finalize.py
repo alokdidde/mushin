@@ -1,10 +1,13 @@
-"""Turn the records of a generator run that was cut short into a normal data directory.
+"""Turn the output of a generator run, cut short or downloaded from the Hub, into a normal
+data directory.
 
     python -m mushin.data.finalize DATA_DIR --config configs/data_m0.yaml
 
 A run stopped by its deadline leaves only ``records.partial.jsonl`` (episodes in finishing order,
-maybe a torn last line). This writes ``records.jsonl`` sorted by episode and step, then the
-splits. A directory that already has ``records.jsonl`` is left as it is.
+maybe a torn last line); a run whose pod died may have left only the ``shards/`` it uploaded.
+This unpacks the shards' frames into ``images/`` when they are missing, writes ``records.jsonl``
+sorted by episode and step from the best source there is, then the splits. ``records.jsonl``
+that already exists is kept.
 """
 
 from __future__ import annotations
@@ -12,35 +15,79 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import tarfile
 from pathlib import Path
+from typing import Any
 
 import yaml
 
 from mushin.data import splits
 
 
-def finalize(data: Path) -> int:
-    """Write ``records.jsonl`` from ``records.partial.jsonl``; returns the decision count."""
-    records = []
-    with (data / "records.partial.jsonl").open() as handle:
+def write_sorted(source: Path, target: Path) -> tuple[int, str]:
+    """Copy records from ``source`` to ``target`` sorted by episode and step, dropping a torn
+    last line; returns the count and the SHA-256 of what was written."""
+    keyed = []
+    with source.open() as handle:
         for line in handle:
             try:
-                records.append(json.loads(line))
+                record = json.loads(line)
             except json.JSONDecodeError:
-                break  # torn last line from the kill at the deadline
-    records.sort(key=lambda r: (r["episode_id"], r["step"]))
+                break  # torn last line from a kill mid-write
+            keyed.append(((record["episode_id"], record["step"]), line))
+    keyed.sort(key=lambda kv: kv[0])
     digest = hashlib.sha256()
-    with (data / "records.jsonl").open("w") as handle:
-        for record in records:
-            line = json.dumps(record, sort_keys=True) + "\n"
+    with target.open("w") as handle:
+        for _, line in keyed:
             digest.update(line.encode())
             handle.write(line)
+    return len(keyed), digest.hexdigest()
+
+
+def write_shard(out: Path, index: int, records: list[dict[str, Any]]) -> None:
+    """``shards/sNNNNN/``: the records and a tar of their frames, then a ``DONE`` marker that
+    tells ``scripts/pod_job.sh`` the shard is ready to upload. Shards keep the Hub's per-folder
+    file count small (it caps a folder at 10k files)."""
+    folder = out / "shards" / f"s{index:05d}"
+    folder.mkdir(parents=True, exist_ok=True)
+    with (folder / "records.jsonl").open("w") as handle:
+        for record in records:
+            handle.write(json.dumps(record, sort_keys=True) + "\n")
+    with tarfile.open(folder / "images.tar", "w") as tar:
+        for record in records:
+            for path in record["frames"].values():
+                if path:
+                    tar.add(out / path, arcname=path)
+    (folder / "DONE").touch()
+
+
+def unpack_shards(data: Path) -> int:
+    """Extract every ``shards/*/images.tar`` into ``data``; returns the number of shards."""
+    tars = sorted(data.glob("shards/*/images.tar"))
+    for path in tars:
+        with tarfile.open(path) as tar:
+            tar.extractall(data, filter="data")
+    return len(tars)
+
+
+def finalize(data: Path) -> int:
+    """Write ``records.jsonl`` from ``records.partial.jsonl`` or, failing that, the shards'
+    records; returns the decision count."""
+    source = data / "records.partial.jsonl"
+    if not source.exists():
+        with source.open("w") as handle:
+            for path in sorted(data.glob("shards/*/records.jsonl")):
+                handle.write(path.read_text())
+    count, digest = write_sorted(source, data / "records.jsonl")
+    episodes = set()
+    for record in splits.read_records(data / "records.jsonl"):
+        episodes.add(record["episode_id"])
     stats_path = data / "stats.json"
     stats = json.loads(stats_path.read_text()) if stats_path.exists() else {}
-    stats.update(complete=False, episodes=len({r["episode_id"] for r in records}),
-                 decisions=len(records), records_sha256=digest.hexdigest())
+    stats.update(complete=False, episodes=len(episodes), decisions=count,
+                 records_sha256=digest)
     stats_path.write_text(json.dumps(stats, indent=2))
-    return len(records)
+    return count
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -48,8 +95,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("data", type=Path)
     parser.add_argument("--config", type=Path, required=True)
     options = parser.parse_args(argv)
+    if not (options.data / "images").is_dir():
+        print(f"unpacked {unpack_shards(options.data)} shards")
     if (options.data / "records.jsonl").exists():
-        print("records.jsonl already present; nothing to do")
+        print("records.jsonl already present")
         return 0
     count = finalize(options.data)
     config = yaml.safe_load(options.config.read_text())["splits"]

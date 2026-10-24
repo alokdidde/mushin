@@ -1,20 +1,23 @@
-# Data generation (M4): generate the full dataset (~200k decisions) on a CPU pod; pod_job.sh uploads it to the Hub.
+# Data generation (M4): ~210k decisions on a CPU pod. Shards of 500 episodes go to the Hub as
+# they finish (scripts/pod_job.sh), so a pod that dies loses at most one shard.
 name: datagen
 image: runpod/base:1.0.2-ubuntu2404   # tag checked on Docker Hub 2026-10-22
 extras: sim,dev
 resources:
   min_gpu_gb: 0
   min_vcpus: 32   # same cost as 16 vCPU at half the time; 16 vCPU risked running past max_hours
-  core_hours_per_unit: 1.6   # measured here: ~0.18 decisions/s/core with frames and counterfactuals
-work_units: 200              # thousands of decisions
+  core_hours_per_unit: 2.6   # measured on cpu3c-32 on 2026-10-23: ~0.105 decisions/s/core
+work_units: 210              # thousands of decisions
 command: >-
-  python -m mushin.data.generate --out data/m4 --episodes 80000 --family m4 --workers $(nproc) &&
+  python -m mushin.data.generate --out data/m4 --episodes 80000 --family m4 --workers $(( $(nproc) - 2 )) --shard-episodes 500 &&
   python -m mushin.data.splits data/m4 --config configs/data_m0.yaml &&
   python -m mushin.data.verify data/m4 --reproduce 200
 out_dir: data/m4
-max_hours: 22   # 320 core-hours on 16 vCPUs is about 20 h
+max_hours: 24   # ~550 core-hours on 32 vCPUs is about 18 h
 disk_gb: 40
-budget_usd: 18   # approved by Alok 2026-10-22 for a cpu5c 32-vCPU pod
+budget_usd: 25   # rerun cap; Alok put quality over cost on 2026-10-23
 secrets: [HF_TOKEN]
-# The data repo does not exist yet, so no MUSHIN_DATA_REPO (pod_job.sh would download it).
-env: {MUSHIN_OUT_REPO: alokdidde/mushin-sim-decisions-v1, MUSHIN_OUT_REPO_TYPE: dataset}
+# No MUSHIN_DATA_REPO: this stage makes the data, so pod_job.sh has nothing to download.
+# MUSHIN_RESUME: a relaunch after a dead pod continues from the shards already uploaded.
+env: {MUSHIN_OUT_REPO: alokdidde/mushin-sim-decisions-v1, MUSHIN_OUT_REPO_TYPE: dataset,
+      MUSHIN_RESUME: 1}
