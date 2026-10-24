@@ -5,6 +5,7 @@ extras: train,gpu
 resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 1.6}   # unit: 100k decisions x 2 epochs
 work_units: 2
 command: >-
+  python -m mushin.data.finalize data/m4 --config configs/data_m0.yaml &&
   hf download alokdidde/mushin-runs --include "sft-warmup/*" --local-dir runs_in &&
   mkdir -p runs/qwen35_08b_warmup &&
   cp runs_in/sft-warmup/qwen35_08b_warmup/checkpoint.pt runs/qwen35_08b_warmup/ &&

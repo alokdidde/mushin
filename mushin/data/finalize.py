@@ -13,9 +13,11 @@ that already exists is kept.
 from __future__ import annotations
 
 import argparse
+import concurrent.futures
 import hashlib
 import json
 import tarfile
+import time
 from pathlib import Path
 from typing import Any
 
@@ -61,12 +63,25 @@ def write_shard(out: Path, index: int, records: list[dict[str, Any]]) -> None:
     (folder / "DONE").touch()
 
 
-def unpack_shards(data: Path) -> int:
-    """Extract every ``shards/*/images.tar`` into ``data``; returns the number of shards."""
+def _extract(path: Path, data: Path) -> None:
+    with tarfile.open(path) as tar:
+        tar.extractall(data, filter="data")
+
+
+def unpack_shards(data: Path, workers: int = 8) -> int:
+    """Extract every ``shards/*/images.tar`` into ``data``, several tars at a time, printing
+    progress; returns the number of shards."""
     tars = sorted(data.glob("shards/*/images.tar"))
-    for path in tars:
-        with tarfile.open(path) as tar:
-            tar.extractall(data, filter="data")
+    # Every tar holds images/...; made here first, the workers would race to create it.
+    (data / "images").mkdir(exist_ok=True)
+    started = time.monotonic()
+    with concurrent.futures.ProcessPoolExecutor(max(1, workers)) as pool:
+        jobs = [pool.submit(_extract, path, data) for path in tars]
+        for done, job in enumerate(concurrent.futures.as_completed(jobs), 1):
+            job.result()
+            if done % 10 == 0 or done == len(tars):
+                print(f"unpacked {done}/{len(tars)} shards, {time.monotonic() - started:.0f} s",
+                      flush=True)
     return len(tars)
 
 

@@ -12,6 +12,7 @@ log() { echo "[mushin $(date -u +%H:%M:%S)] $*"; }
 # before it writes any output still leaves its log on the Hub. It lives on the container disk,
 # so it survives a full /workspace volume.
 LOG=/tmp/pod_job.log
+export PYTHONUNBUFFERED=1   # Python output reaches the log as it happens
 exec > >(tee -a "$LOG") 2>&1
 
 hub_upload() {  # hub_upload LOCAL_PATH PATH_IN_REPO [extra hf upload args]
@@ -41,6 +42,7 @@ finish() {
   log "job exit status $status"
   df -h / /workspace 2>/dev/null
   [ -n "${HEARTBEAT:-}" ] && kill "$HEARTBEAT" 2>/dev/null
+  [ -n "${LOGBEAT:-}" ] && kill "$LOGBEAT" 2>/dev/null
   if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
     mkdir -p "$WORK/$OUT_DIR" && cp "$LOG" "$WORK/$OUT_DIR/pod_job.log"
     echo "{\"status\": $status, \"pod\": \"${RUNPOD_POD_ID:-}\"}" > "$WORK/$OUT_DIR/pod_status.json"
@@ -62,13 +64,34 @@ finish() {
 }
 trap finish EXIT
 
+# The hf CLI goes in first, on its own, so the log can reach the Hub even when the clone, the
+# install or a download hangs; it is uploaded every 2 min until the job ends.
+log "pod started"
+command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh || exit 11
+export PATH="$HOME/.local/bin:$PATH"
+uv tool install -q "huggingface_hub[cli]>=0.30" || log "could not install the hf CLI"
+uv tool install -q py-spy || log "could not install py-spy"
+if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
+  # Every 10 min the log also gets the Python stacks of the job, to show where a quiet job is.
+  (beat=0; while sleep 120; do
+     beat=$((beat + 1))
+     if [ $((beat % 5)) -eq 0 ] && command -v py-spy >/dev/null; then
+       for pid in $(pgrep -f "python -m mushin"); do
+         log "stack of $pid"; py-spy dump --pid "$pid" 2>&1 | head -40
+       done
+     fi
+     hub_upload "$LOG" pod_job.log
+   done) &
+  LOGBEAT=$!
+fi
+
+log "cloning mushin at $MUSHIN_COMMIT"
 url="https://github.com/alokdidde/mushin"
 [ -n "${GITHUB_TOKEN:-}" ] && url="https://x-access-token:${GITHUB_TOKEN}@github.com/alokdidde/mushin"
 git clone -q "$url" "$WORK" && git -C "$WORK" checkout -q "$MUSHIN_COMMIT" || exit 10
 cd "$WORK"
+log "installing .[$EXTRAS]"
 # Python 3.12 through uv, whatever the image ships.
-command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh || exit 11
-export PATH="$HOME/.local/bin:$PATH"
 uv venv -q -p 3.12 /workspace/venv && . /workspace/venv/bin/activate || exit 11
 uv pip install -q -e ".[$EXTRAS]" "huggingface_hub[cli]>=0.30" || exit 11
 if [ "$EXTRAS" != "${EXTRAS/sim/}" ]; then
@@ -76,8 +99,12 @@ if [ "$EXTRAS" != "${EXTRAS/sim/}" ]; then
   scripts/fetch_uzumaki.sh || exit 13
 fi
 if [ -n "${MUSHIN_DATA_REPO:-}" ]; then
-  hf download "$MUSHIN_DATA_REPO" --repo-type dataset --local-dir "${MUSHIN_DATA_DIR:-data/m4}" \
-    || exit 14
+  # Inputs go on the container disk, linked into the checkout: unpacking 400k frames onto the
+  # /workspace volume took over 15 minutes on some hosts.
+  DATA_DIR="${MUSHIN_DATA_DIR:-data/m4}"
+  log "downloading $MUSHIN_DATA_REPO"
+  hf download "$MUSHIN_DATA_REPO" --repo-type dataset --local-dir /tmp/mushin-data || exit 14
+  mkdir -p "$(dirname "$DATA_DIR")" && ln -sfn /tmp/mushin-data "$DATA_DIR"
 fi
 if [ -n "${MUSHIN_RESUME:-}" ] && [ -n "${MUSHIN_OUT_REPO:-}" ]; then
   # Resume after a pod died: fetch what earlier pods uploaded (shard records, checkpoints; not
