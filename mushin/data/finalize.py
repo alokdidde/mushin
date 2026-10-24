@@ -72,6 +72,8 @@ def unpack_shards(data: Path, workers: int = 8) -> int:
     """Extract every ``shards/*/images.tar`` into ``data``, several tars at a time, printing
     progress; returns the number of shards."""
     tars = sorted(data.glob("shards/*/images.tar"))
+    # Every tar holds images/...; made here first, the workers would race to create it.
+    (data / "images").mkdir(exist_ok=True)
     started = time.monotonic()
     with concurrent.futures.ProcessPoolExecutor(max(1, workers)) as pool:
         jobs = [pool.submit(_extract, path, data) for path in tars]
