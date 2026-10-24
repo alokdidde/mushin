@@ -12,6 +12,7 @@ log() { echo "[mushin $(date -u +%H:%M:%S)] $*"; }
 # before it writes any output still leaves its log on the Hub. It lives on the container disk,
 # so it survives a full /workspace volume.
 LOG=/tmp/pod_job.log
+export PYTHONUNBUFFERED=1   # Python output reaches the log as it happens
 exec > >(tee -a "$LOG") 2>&1
 
 hub_upload() {  # hub_upload LOCAL_PATH PATH_IN_REPO [extra hf upload args]
@@ -69,8 +70,18 @@ log "pod started"
 command -v uv >/dev/null || curl -LsSf https://astral.sh/uv/install.sh | sh || exit 11
 export PATH="$HOME/.local/bin:$PATH"
 uv tool install -q "huggingface_hub[cli]>=0.30" || log "could not install the hf CLI"
+uv tool install -q py-spy || log "could not install py-spy"
 if [ -n "${MUSHIN_OUT_REPO:-}" ] && [ -n "${HF_TOKEN:-}" ]; then
-  (while sleep 120; do hub_upload "$LOG" pod_job.log; done) &
+  # Every 10 min the log also gets the Python stacks of the job, to show where a quiet job is.
+  (beat=0; while sleep 120; do
+     beat=$((beat + 1))
+     if [ $((beat % 5)) -eq 0 ] && command -v py-spy >/dev/null; then
+       for pid in $(pgrep -f "python -m mushin"); do
+         log "stack of $pid"; py-spy dump --pid "$pid" 2>&1 | head -40
+       done
+     fi
+     hub_upload "$LOG" pod_job.log
+   done) &
   LOGBEAT=$!
 fi
 
