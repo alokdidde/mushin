@@ -1,0 +1,22 @@
+# Benchmark of the SFT LoRA checkpoint: per-decision latency and memory with the fast
+# causal-conv1d kernel (mushin.export.latency), then closed-loop uzumaki episodes against the rule
+# selector on fresh training-only seeds (mushin.eval.closed_loop). Results sync to the Hub as they
+# are written.
+name: bench-lora
+image: runpod/base:1.0.2-cuda1281-ubuntu2404
+extras: train,gpu,sim
+resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 1.0}   # unit: ~200 episode pairs, 4090
+work_units: 2
+command: >-
+  (timeout 1200 uv pip install --no-build-isolation causal-conv1d || echo "causal-conv1d not installed") &&
+  python -m mushin.data.finalize data/m4 --config configs/data_m0.yaml &&
+  hf download alokdidde/mushin-runs --include "sft-lora/qwen35_08b_lora/*" --local-dir ckpt &&
+  mkdir -p runs &&
+  (python -m mushin.export.latency --data data/m4 --checkpoint ckpt/sft-lora/qwen35_08b_lora/checkpoint.pt --records 50 --out runs/latency.json || true) &&
+  MUJOCO_GL=egl python -m mushin.eval.closed_loop --checkpoint ckpt/sft-lora/qwen35_08b_lora/checkpoint.pt --out runs/closed_loop --episodes 60
+out_dir: runs
+max_hours: 4
+budget_usd: 4
+secrets: [HF_TOKEN]
+env: {MUSHIN_DATA_REPO: alokdidde/mushin-sim-decisions-v1, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
+      MUSHIN_OUT_PREFIX: bench/sft-lora, MUSHIN_SYNC_OUT: 1}
