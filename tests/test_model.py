@@ -86,10 +86,23 @@ def test_sft_learns_and_calibrates(tmp_path, small_dir, small_records):
     report = json.loads((out / "calibration.json").read_text())
     assert report["after"]["choice"]["nll"] <= report["before"]["choice"]["nll"] + 1e-6
 
+    from mushin.export import release
+    from mushin.train import checkpoint
+
+    assert release.main([str(out / "checkpoint.pt"), str(tmp_path / "release")]) == 0
+    loaded = checkpoint.load_pretrained(tmp_path / "release")
+    reference = checkpoint.load_for_inference(out / "checkpoint.pt")
+    assert torch.equal(loaded.head.choice_temperature, reference.head.choice_temperature)
+    assert sft.evaluate(*_model_and_loader_for(loaded, config)) == \
+        sft.evaluate(*_model_and_loader_for(reference, config))
+
 
 def _model_and_loader(config):
     from mushin.train import checkpoint
 
-    model = checkpoint.build_model(config)
+    return _model_and_loader_for(checkpoint.build_model(config), config)
+
+
+def _model_and_loader_for(model, config):
     _, loader = sft.loaders(config, model)
     return model, loader, "cpu"
