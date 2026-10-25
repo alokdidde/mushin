@@ -2,6 +2,15 @@
 
 **A research project exploring compact System-1 models for typed probabilistic decisions.**
 
+| 🤗 Hugging Face | |
+|---|---|
+| **Model** | [alokdidde/mushin-0.8b-v0.1](https://huggingface.co/alokdidde/mushin-0.8b-v0.1): Qwen3.5-0.8B + LoRA + decision heads, with model card and all benchmark files |
+| **Training data** | [alokdidde/mushin-sim-decisions-v1](https://huggingface.co/datasets/alokdidde/mushin-sim-decisions-v1): 201k simulated robot decisions with counterfactual labels |
+| **Next dataset** | [alokdidde/mushin-sim-decisions-v2](https://huggingface.co/datasets/alokdidde/mushin-sim-decisions-v2): v1 + 2,144 G1 episodes (206k decisions) |
+| **G1 top-up** | [alokdidde/mushin-sim-decisions-g1-topup](https://huggingface.co/datasets/alokdidde/mushin-sim-decisions-g1-topup) |
+
+The Hugging Face repos are private for now.
+
 Mushin aims to turn context and a focused question into a bounded decision that software can use directly: a probability, a choice among explicit alternatives, or a score on a defined scale. The research goal is to study the trade-offs between decision quality, calibration, and inference cost, with potential applications to agent routing and robotic skill selection.
 
 ## Current status
