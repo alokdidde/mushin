@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from pathlib import Path
 from typing import Any
 
@@ -52,4 +53,34 @@ def load_for_inference(path: Path, device: str = "cpu") -> MushinModel:
     saved = torch.load(path, map_location="cpu", weights_only=False)
     model = build_model(saved["config"])
     model.load_state_dict(saved["state"], strict=False)
+    return model.to(device).eval()
+
+
+#: Files of a released model (``python -m mushin.export.release``).
+RELEASE_CONFIG, RELEASE_WEIGHTS = "mushin_config.json", "model.safetensors"
+
+
+def load_pretrained(source: str | Path, device: str = "cpu",
+                    revision: str | None = None) -> MushinModel:
+    """Load a released model from a local directory or a Hugging Face repo id.
+
+    The release holds the stage config and the trained weights only (LoRA, vision connector,
+    heads and calibrated temperatures); the base backbone named in the config is downloaded by
+    transformers as usual.
+    """
+    from safetensors.torch import load_file
+
+    folder = Path(source)
+    if not folder.is_dir():
+        from huggingface_hub import snapshot_download
+
+        folder = Path(snapshot_download(str(source), revision=revision,
+                                        allow_patterns=[RELEASE_CONFIG, RELEASE_WEIGHTS]))
+    config = json.loads((folder / RELEASE_CONFIG).read_text())
+    model = build_model(config)
+    state = load_file(str(folder / RELEASE_WEIGHTS))
+    missing = set(state) - set(model.state_dict())
+    if missing:
+        raise KeyError(f"release has weights the model lacks: {sorted(missing)[:5]}")
+    model.load_state_dict(state, strict=False)
     return model.to(device).eval()
