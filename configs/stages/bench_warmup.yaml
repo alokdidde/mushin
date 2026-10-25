@@ -3,17 +3,21 @@
 name: bench-warmup
 image: runpod/base:1.0.2-cuda1281-ubuntu2404
 extras: train,gpu
-resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 0.3}   # unit: 50k decisions, 4090
-work_units: 1
+resources: {min_gpu_gb: 24, min_vcpus: 8, est_hours_per_unit: 1.0}   # unit: 50k decisions, 4090
+work_units: 1.6
 command: >-
+  (timeout 1200 uv pip install --no-build-isolation causal-conv1d || echo "fast kernels not installed") &&
   python -m mushin.data.finalize data/m4 --config configs/data_m0.yaml &&
-  hf download alokdidde/mushin-runs --include "sft-warmup/qwen35_08b_warmup/checkpoint.pt" "sft-warmup/qwen35_08b_warmup/*.json" --local-dir ckpt &&
-  mkdir -p runs &&
-  python -m mushin.export.latency --data data/m4 --checkpoint ckpt/sft-warmup/qwen35_08b_warmup/checkpoint.pt --records 50 --out runs/latency.json &&
-  python -m mushin.eval.run --checkpoint ckpt/sft-warmup/qwen35_08b_warmup/checkpoint.pt --data data/m4 --out runs/eval.json
+  hf download alokdidde/mushin-runs --include "sft-warmup/qwen35_08b_warmup/*" --local-dir ckpt &&
+  mkdir -p runs && cp ckpt/sft-warmup/qwen35_08b_warmup/checkpoint.pt runs/checkpoint.pt &&
+  python -m mushin.train.calibrate --checkpoint runs/checkpoint.pt --data data/m4 &&
+  (python -m mushin.export.latency --data data/m4 --checkpoint runs/checkpoint.pt --records 50 --out runs/latency.json || true) &&
+  python -m mushin.eval.run --checkpoint runs/checkpoint.pt --data data/m4 --splits val --out runs/eval_val.json &&
+  python -m mushin.eval.run --checkpoint runs/checkpoint.pt --data data/m4 --splits test_body --out runs/eval_test_body.json &&
+  python -m mushin.eval.run --checkpoint runs/checkpoint.pt --data data/m4 --splits test --out runs/eval_test.json
 out_dir: runs
-max_hours: 1.5
-budget_usd: 2
+max_hours: 4
+budget_usd: 3
 secrets: [HF_TOKEN]
 env: {MUSHIN_DATA_REPO: alokdidde/mushin-sim-decisions-v1, MUSHIN_OUT_REPO: alokdidde/mushin-runs,
-      MUSHIN_OUT_PREFIX: bench/sft-warmup}
+      MUSHIN_OUT_PREFIX: bench/sft-warmup, MUSHIN_SYNC_OUT: 1}
