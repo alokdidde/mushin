@@ -388,4 +388,9 @@ Mushin is inspired by TypeSafe AI's [Jev and System One models](https://typesafe
 
 ## Licence
 
-No licence has been chosen yet for the code, the model weights or the datasets. The Qwen3.5-0.8B base model is Apache-2.0, and the simulated robots use upstream asset packs that have their own licences.
+- **Code and model weights:** [Apache License 2.0](LICENSE). This is the same licence as the Qwen3.5-0.8B base model.
+- **Datasets:** [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+
+Both licences provide everything "as is", without warranties of any kind, and limit the authors' liability (Apache-2.0 sections 7 and 8; CC BY 4.0 section 5). Mushin is a research model trained only in simulation. It is not a safety system, and using it to control real hardware is entirely at your own risk.
+
+The simulated robots in the dataset frames come from upstream model and asset packs, which keep their own licences.
