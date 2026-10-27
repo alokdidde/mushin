@@ -11,7 +11,7 @@ Mushin looks at the task, the robot's latest observation, its recent history and
 | **Next dataset** | [alokdidde/mushin-sim-decisions-v2](https://huggingface.co/datasets/alokdidde/mushin-sim-decisions-v2): v1 + 2,144 G1 episodes (206k decisions) |
 | **G1 top-up** | [alokdidde/mushin-sim-decisions-g1-topup](https://huggingface.co/datasets/alokdidde/mushin-sim-decisions-g1-topup) |
 
-> **v0.1 is a research release trained only in simulation.** The Hugging Face repos are private for now. See [Limitations](#limitations).
+> **v0.1 is a research release trained only in simulation.** See [Limitations](#limitations).
 
 **Highlights**
 
@@ -251,7 +251,6 @@ Every result file (per-split and per-body metrics, calibration, latency, closed-
 git clone https://github.com/alokdidde/mushin && cd mushin
 uv venv -p 3.12 && uv pip install -e ".[train]"      # torch, transformers>=5.20, peft, safetensors
 uv pip install -e ".[gpu]" causal-conv1d             # optional on CUDA: fast linear-attention kernels
-hf auth login                                        # while the model repo is private
 ```
 
 **Score a decision record**
@@ -393,4 +392,4 @@ Mushin is inspired by TypeSafe AI's [Jev and System One models](https://typesafe
 
 Both licences provide everything "as is", without warranties of any kind, and limit the authors' liability (Apache-2.0 sections 7 and 8; CC BY 4.0 section 5). Mushin is a research model trained only in simulation. It is not a safety system, and using it to control real hardware is entirely at your own risk.
 
-The simulated robots in the dataset frames come from upstream model and asset packs, which keep their own licences.
+The dataset frames are renders of robot models from [MuJoCo Menagerie](https://github.com/google-deepmind/mujoco_menagerie) and [MuJoCo Playground](https://github.com/google-deepmind/mujoco_playground) (Apache-2.0, BSD-3-Clause and MIT; the dataset cards credit each one). No model files are redistributed.
